@@ -90,6 +90,18 @@ string GetCustomBinUrl(string cmdline)
     return ExtractArgString(pos, binKey, modParams);
 }
 
+string GetPassword(string cmdline)
+{
+    const char* pswKey = " -psw ";
+    string modParams = ' ' + cmdline + ' ';
+    u32 pos;
+
+    if (!Find(pswKey, modParams, pos))
+        return "";
+
+    return ExtractArgString(pos, pswKey, modParams);
+}
+
 string GetServerIp(string cmdline)
 {
     const char* SRV_IP = "-srv ";

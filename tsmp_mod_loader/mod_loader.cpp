@@ -21,6 +21,7 @@ extern string GetServerIp(string cmdline);
 extern int GetServerPort(string cmdline);
 extern bool IsCmdLineNameNameNeeded(string cmdline);
 extern string GetCustomBinUrl(string cmdline);
+extern string GetPassword(string cmdline);
 extern string GetCustomGamedataUrl(string cmdline);
 extern string GetExeName(string cmdline, string defVal);
 extern bool IsFullInstallMode(string cmdline);
@@ -1145,6 +1146,11 @@ bool DoWork(string modName, string modPath) //¬ыполн€етс€ в отдельном потоке
 		playername = "/name=" + playername;
 	}
 
+	string psw = GetPassword(_mod_params);
+
+	if (!psw.empty())
+		psw = "/psw=" + psw;
+
 	//assignfile(add_params_file, additional_keys_line_file);
 	//try
 	//	reset(add_params_file);
@@ -1166,18 +1172,18 @@ bool DoWork(string modName, string modPath) //¬ыполн€етс€ в отдельном потоке
 
 		if (!mod_settings.exe_name.empty())
 		{
-
 			cmdapp = cmdapp + mod_settings.exe_name;
 			cmdline = mod_settings.exe_name;
 		}
-		else {
+		else 
+		{
 			cmdapp = cmdapp + VersionAbstraction()->GetEngineExeFileName();
 			cmdline = VersionAbstraction()->GetEngineExeFileName();
 		}
 
 		//-fzmod - показывает им€ мода; -fz_nomod - тключает загрузку модов (чтобы не впасть в рекурсию/стара€ верси€)
 		//так как проверка на им€ мода идет первой, то все должно работать
-		cmdline = cmdline + ' ' + add_params + " -fz_nomod -fzmod " + mod_settings.modname + " -start client(" + ip + "/port=" + std::to_string(port) + playername + ')';
+		cmdline = cmdline + ' ' + add_params + " -fz_nomod -fzmod " + mod_settings.modname + " -start client(" + ip + "/port=" + std::to_string(port) + playername + psw + ')';
 		workingdir = mod_settings.root_dir;
 	}
 	//	else
