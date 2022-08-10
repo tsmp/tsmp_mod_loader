@@ -1,0 +1,2 @@
+LIBRARY tsmp_mod_loader
+EXPORTS	ModLoad

@@ -1,0 +1,1 @@
+﻿D:\Projects\tsmp_mod_loader\tsmp_mod_loader\tsmp_mod_loader.vcxproj(62,5): error MSB4019: импортированный проект "D:\Projects\tsmp_mod_loader\tsmp3.props" не найден. Проверьте правильность выражения в объявлении Import "..\tsmp3.props" и наличие файла на диске.

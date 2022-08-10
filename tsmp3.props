@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ImportGroup Label="PropertySheets" />
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup>
+    <OutDir>$(SolutionDir)\output\binaries_$(platform)_$(Configuration)\</OutDir>
+    <IntDir>$(SolutionDir)\output\Intermediate\$(Platform)\$(Configuration)\$(ProjectName)\</IntDir>
+  </PropertyGroup>
+  <ItemDefinitionGroup>
+    <Link>
+      <ImportLibrary>$(SolutionDir)\output\libraries_$(platform)_$(Configuration)\$(TargetName).lib</ImportLibrary>
+      <AdditionalLibraryDirectories>$(SolutionDir);$(SolutionDir)\output\libraries_$(platform)_$(Configuration);$(SolutionDir)Components\DX9SDK\Lib_$(platform);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <LargeAddressAware>true</LargeAddressAware>
+    </Link>
+    <ClCompile>
+      <PreprocessorDefinitions>_SILENCE_STDEXT_HASH_DEPRECATION_WARNINGS;_WINDLL;_SECURE_SCL=0;_ITERATOR_DEBUG_LEVEL=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>$(SolutionDir)Components\loki;$(SolutionDir)Components\libogg\include\;$(SolutionDir)xrEngine;$(SolutionDir)Components\libtheora\include\;$(SolutionDir)Components\LuaJIT\src;$(SolutionDir)Components\Luabind;$(SolutionDir)xrODE\include;$(SolutionDir)zlib\include;$(SolutionDir)Components\DX9SDK\Include;$(SolutionDir)Components\libvorbis\include;$(SolutionDir)Components\crypto\openssl;$(SolutionDir)xrCore;$(SolutionDir)Components;$(SolutionDir)Components\eax\Include;$(SolutionDir)xrOpenAL\include\AL;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+    </ClCompile>
+    <Lib>
+      <OutputFile>$(SolutionDir)\output\libraries_$(platform)_$(Configuration)\$(TargetName).lib</OutputFile>
+    </Lib>
+  </ItemDefinitionGroup>
+  <ItemGroup />
+</Project>
