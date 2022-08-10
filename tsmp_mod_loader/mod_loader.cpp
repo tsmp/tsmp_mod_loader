@@ -1281,7 +1281,7 @@ bool ThreadBody_internal()
 		return false;
 	}
 
-	Msg("- FreeZone Mod Loader");
+	Msg("- FreeZone Mod Loader TSMP v1");
 	Msg("- Build date: %s", __DATE__);
 	Msg("- Mod name is %s", _mod_name.c_str());
 	Msg("- Mod params %s", _mod_params.c_str());
