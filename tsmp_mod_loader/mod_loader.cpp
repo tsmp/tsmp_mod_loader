@@ -1106,7 +1106,7 @@ bool DoWork(string modName, string modPath) //¬ыполн€етс€ в отдельном потоке
 	VersionAbstraction()->AssignStatus("Building userltx...");
 
 	//если user.ltx отсутствует в userdata - нужно сделать его там
-	if (FileExists(mod_settings.root_dir + userdata_dir_name + userltx_name))
+	if (!FileExists(mod_settings.root_dir + userdata_dir_name + userltx_name))
 	{
 		Msg("Building userltx");
 		//в случае с SACE команда на сохранение не срабатывает, поэтому сначала скопируем файл
