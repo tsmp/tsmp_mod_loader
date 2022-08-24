@@ -45,8 +45,7 @@ bool IsDummy(FZCheckParams c)
 
 bool CompareFiles(FZCheckParams c1, FZCheckParams c2)
 {
-	// TODO: починить CRC32!
-	return /*c1.crc32 == c2.crc32 && */ c1.size == c2.size /*&& c1.md5 == c2.md5 */;
+	return c1.crc32 == c2.crc32 && c1.size == c2.size; /* && c1.md5 == c2.md5 */;
 }
 
 // crc32
@@ -67,7 +66,7 @@ bool InitCrc32()
 	return false;
 }
 
-void CRC32Update(u32& crc32, const BYTE* const pBuf, u32 size)
+void CRC32Update(u32 &crc32, const BYTE* const pBuf, u32 size)
 {
 	crc32 = RtlComputeCrc32(crc32, pBuf, size);
 }
@@ -97,6 +96,14 @@ bool GetFileChecks(string path, pFZCheckParams out_check_params, bool needMD5)
 		return true;
 	}
 
+	// TMD5Context md5_ctx = MD5Start();
+
+	if (!InitCrc32())
+	{
+		Msg("! cant init crc32");
+		return false;
+	}
+
 	char* ptr = new char[WORK_SIZE];
 
 	if (!ptr)
@@ -105,22 +112,14 @@ bool GetFileChecks(string path, pFZCheckParams out_check_params, bool needMD5)
 		return false;
 	}
 
-	//   TMD5Context       md5_ctx : = MD5Start();
-
-	if (!InitCrc32())
-	{
-		Msg("! cant init crc32");
-		return false;
-	}
-
 	u32 crc = 0;
 
-	while (ReadFile(file_handle, reinterpret_cast<void*>(ptr), WORK_SIZE, &readbytes, nullptr) && WORK_SIZE == readbytes)
+	while (ReadFile(file_handle, reinterpret_cast<void*>(ptr), WORK_SIZE, &readbytes, nullptr) && readbytes)
 	{
-
 		//if (needMD5) 
 		//    MD5Next(md5_ctx, ptr, WORK_SIZE div MD5BlockSize());
-		CRC32Update(crc, reinterpret_cast<BYTE*>(ptr), WORK_SIZE);
+
+		CRC32Update(crc, reinterpret_cast<BYTE*>(ptr), readbytes);
 	}
 
 	//if needMD5 then out_check_params.md5: = MD5End(md5_ctx, ptr, readbytes);
