@@ -1,7 +1,7 @@
 #include <string>
 #include "..\Common.h"
 
-// TODO: implement
+// TODO: implement LZO?
 
 //type TDecompressorLogFun = procedure(txt:PAnsiChar); stdcall;
 //
@@ -119,7 +119,7 @@ u32 DecompressCabFile(string filename)
 		//#ifdef LOG_UNPACKING 
 		//	cmd = "cmd.exe /C EXPAND " + filename + " " + tmpname + " > " + filename + '_' + inttostr(retryCount) + '.log';
 		//#else
-		cmd = "EXPAND " + filename + " " + tmpname;
+		cmd = "EXPAND \"" + filename + "\" \"" + tmpname + "\"";
 		//#endif
 
 		retryCount--;
