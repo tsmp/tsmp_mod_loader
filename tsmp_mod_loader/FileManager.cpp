@@ -4,9 +4,8 @@
 #include "HttpDownloader.h"
 #include <shlobj_core.h>
 
-// TODO: enable curl downloader
+// TODO: enable curl downloader?
 // TODO: implement md5 or remove it
-// TOFO: unicode?
 
 // Создает папки по указанному пути
 bool ForceDirectories(const string &path)
@@ -20,10 +19,10 @@ bool _DeleteFile(string path)
 	return !!DeleteFile(path.c_str());
 }
 
-bool GetFileChecks(string path, pFZCheckParams out_check_params, bool needMD5);
-bool IsDummy(FZCheckParams c);
+bool GetFileChecks(string path, FZCheckParams &OutCheckParams, bool needMD5);
+bool IsDummy(const FZCheckParams &c);
 FZCheckParams GetDummyChecks();
-bool CompareFiles(FZCheckParams c1, FZCheckParams c2);
+bool CompareFiles(const FZCheckParams &c1, const FZCheckParams &c2);
 
 const char* FM_LBL = "[FM]";
 
@@ -38,99 +37,14 @@ FZCheckParams GetDummyChecks()
 	return result;
 }
 
-bool IsDummy(FZCheckParams c)
+bool IsDummy(const FZCheckParams &c)
 {
 	return !c.crc32 && !c.size && !c.md5.size();
 }
 
-bool CompareFiles(FZCheckParams c1, FZCheckParams c2)
+bool CompareFiles(const FZCheckParams &c1, const FZCheckParams &c2)
 {
 	return c1.crc32 == c2.crc32 && c1.size == c2.size; /* && c1.md5 == c2.md5 */;
-}
-
-// crc32
-typedef DWORD(NTAPI* pRTL_CRC32)(DWORD dwCRC32, const BYTE* const pBuf, DWORD dwSize);
-pRTL_CRC32 RtlComputeCrc32 = nullptr;
-
-bool InitCrc32()
-{
-	if (RtlComputeCrc32)
-		return true;
-
-	if (HMODULE hDLL = GetModuleHandle("ntdll.dll"))
-	{
-		RtlComputeCrc32 = (pRTL_CRC32)GetProcAddress(hDLL, "RtlComputeCrc32");
-		return !!RtlComputeCrc32;
-	}
-
-	return false;
-}
-
-void CRC32Update(u32 &crc32, const BYTE* const pBuf, u32 size)
-{
-	crc32 = RtlComputeCrc32(crc32, pBuf, size);
-}
-
-bool GetFileChecks(string path, pFZCheckParams out_check_params, bool needMD5)
-{
-	const u32 WORK_SIZE = 1 * 1024 * 1024;
-	Msg("Calculating checks for %s", path.c_str());
-
-	out_check_params->crc32 = 0;
-	out_check_params->md5 = "";
-	unsigned long readbytes = 0;
-
-	HANDLE file_handle = CreateFile(path.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_SEQUENTIAL_SCAN, 0);
-
-	if (file_handle == INVALID_HANDLE_VALUE)
-	{
-		Msg("! Cannot read file, exiting");
-		return false;
-	}
-
-	out_check_params->size = GetFileSize(file_handle, nullptr);
-
-	if (!out_check_params->size)
-	{
-		CloseHandle(file_handle);
-		return true;
-	}
-
-	// TMD5Context md5_ctx = MD5Start();
-
-	if (!InitCrc32())
-	{
-		Msg("! cant init crc32");
-		return false;
-	}
-
-	char* ptr = new char[WORK_SIZE];
-
-	if (!ptr)
-	{
-		Msg("! Cannot allocate memory, exiting");
-		return false;
-	}
-
-	u32 crc = 0;
-
-	while (ReadFile(file_handle, reinterpret_cast<void*>(ptr), WORK_SIZE, &readbytes, nullptr) && readbytes)
-	{
-		//if (needMD5) 
-		//    MD5Next(md5_ctx, ptr, WORK_SIZE div MD5BlockSize());
-
-		CRC32Update(crc, reinterpret_cast<BYTE*>(ptr), readbytes);
-	}
-
-	//if needMD5 then out_check_params.md5: = MD5End(md5_ctx, ptr, readbytes);
-	out_check_params->crc32 = crc;
-
-	delete[] ptr;
-	Msg("File size is %u, crc32 = %#08x", out_check_params->size, out_check_params->crc32);
-	//Msg("File size is %u, crc32 = %#08x, md5 = [%s]", out_check_params->size, out_check_params->crc32, out_check_params->md5.c_str());
-
-	CloseHandle(file_handle);
-	return true;
 }
 
 bool FZFiles::_ScanDir(string dir_path)
@@ -273,7 +187,7 @@ bool FZFiles::UpdateFileInfo(string filename, string url, u32 compression_type, 
 		if (IsDummy(filedata->real))
 		{
 			//посчитаем его CRC32, если ранее не считался
-			if (!GetFileChecks(_parent_path + filedata->name, &filedata->real, !targetParams.md5.empty()))
+			if (!GetFileChecks(_parent_path + filedata->name, filedata->real, !targetParams.md5.empty()))
 			{
 				filedata->real.crc32 = 0;
 				filedata->real.size = 0;
@@ -535,7 +449,7 @@ bool FZFiles::ActualizeFiles()
 
 				if (filedata && filedata->required_action == FZ_FILE_ACTION_VERIFY)
 				{
-					if (GetFileChecks(_parent_path + filedata->name, &filedata->real, !filedata->target.md5.empty()))
+					if (GetFileChecks(_parent_path + filedata->name, filedata->real, !filedata->target.md5.empty()))
 					{
 						if (!CompareFiles(filedata->real, filedata->target))
 						{

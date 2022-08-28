@@ -44,8 +44,6 @@ struct FZCheckParams
 	string md5;
 };
 
-using pFZCheckParams = FZCheckParams*;
-
 struct FZFileItemData
 {
 	string name;
@@ -94,5 +92,5 @@ public:
 	void Copy(const FZFiles &from);
 };
 
-bool GetFileChecks(string path, pFZCheckParams out_check_params, bool needMD5);
-bool CompareFiles(FZCheckParams c1, FZCheckParams c2);
+bool GetFileChecks(string path, FZCheckParams &OutCheckParams, bool needMD5);
+bool CompareFiles(const FZCheckParams &c1, const FZCheckParams &c2);

@@ -665,7 +665,7 @@ bool CopyFileIfValid(string src_path, string dst_path, FZCheckParams targetParam
 	string dst_dir;
 	bool result = false;
 
-	if (GetFileChecks(src_path, &fileCheckParams, !targetParams.md5.empty()))
+	if (GetFileChecks(src_path, fileCheckParams, !targetParams.md5.empty()))
 	{
 		if (CompareFiles(fileCheckParams, targetParams))
 		{
