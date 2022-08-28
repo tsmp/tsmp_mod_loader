@@ -9,25 +9,23 @@
 
 #pragma comment(lib, "shlwapi.lib")
 
-using std::vector;
 using std::endl;
-using u32 = unsigned int;
 HMODULE CurrentModule;
 
-extern bool ForceShowMessage(string cmd);
-extern bool IsGameSpyDlForced(string cmdline);
-extern bool IsMirrorsDisabled(string cmdline);
-extern string GetServerIp(string cmdline);
-extern int GetServerPort(string cmdline);
-extern bool IsCmdLineNameNameNeeded(string cmdline);
-extern string GetCustomBinUrl(string cmdline);
-extern string GetPassword(string cmdline);
-extern string GetCustomGamedataUrl(string cmdline);
-extern string GetExeName(string cmdline, string defVal);
-extern bool IsFullInstallMode(string cmdline);
-extern bool IsSharedPatches(string cmdline);
-extern string GetConfigsDir(string cmdline, string defVal);
-extern bool ForceDirectories(const string& path);
+extern bool ForceShowMessage(const string &cmd);
+extern bool IsGameSpyDlForced(const string &cmdline);
+extern bool IsMirrorsDisabled(const string &cmdline);
+extern string GetServerIp(const string &cmdline);
+extern int GetServerPort(const string &cmdline);
+extern bool IsCmdLineNameNameNeeded(const string &cmdline);
+extern string GetCustomBinUrl(const string &cmdline);
+extern string GetPassword(const string &cmdline);
+extern string GetCustomGamedataUrl(const string &cmdline);
+extern string GetExeName(const string &cmdline, const string &defVal);
+extern bool IsFullInstallMode(const string &cmdline);
+extern bool IsSharedPatches(const string &cmdline);
+extern string GetConfigsDir(const string &cmdline, const string &defVal);
+extern bool ForceDirectories(const string &path);
 
 extern bool WinapiDownloadFile(const char* url, const char* path);
 extern void KillMutex();
@@ -1446,8 +1444,6 @@ FZDllModFunResult ModLoad_internal(char* modName, char* modParams)
 		{
 			_mod_name = modName;
 			_mod_params = modParams;
-
-			//FZLogMgr.Get.SetSeverity(GetLogSeverity(mod_params));
 
 			//Благодаря этому хаку с префиксом, игра не полезет подгружать файлы мода при запуске оригинального клиента
 			_mod_rel_path = mod_dir_prefix;

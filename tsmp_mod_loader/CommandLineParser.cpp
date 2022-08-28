@@ -28,7 +28,7 @@ string ExtractArgString(u32 startPos, const char* argKey, const string &params)
     return result;
 }
 
-int GetServerPort(string cmdline)
+int GetServerPort(const string &cmdline)
 {
     const char* portArg = "-srvport ";
     string modParams = ' ' + cmdline + ' ';
@@ -42,7 +42,7 @@ int GetServerPort(string cmdline)
 	return stoi(portStr);
 }
 
-string GetConfigsDir(string cmdline, string defVal)
+string GetConfigsDir(const string &cmdline, const string &defVal)
 {
     const char* configsKey = " -configsdir ";
     string modParams = ' ' + cmdline + ' ';
@@ -54,7 +54,7 @@ string GetConfigsDir(string cmdline, string defVal)
     return ExtractArgString(pos, configsKey, modParams);
 }
 
-string GetExeName(string cmdline, string defVal)
+string GetExeName(const string &cmdline, const string &defVal)
 {
     const char* exeKey = " -exename ";
     string modParams = ' ' + cmdline + ' ';
@@ -66,7 +66,7 @@ string GetExeName(string cmdline, string defVal)
     return ExtractArgString(pos, exeKey, modParams);
 }
 
-string GetCustomGamedataUrl(string cmdline)
+string GetCustomGamedataUrl(const string &cmdline)
 {
     const char* gamedataKey = " -gamelist ";
     string modParams = ' ' + cmdline + ' ';
@@ -78,7 +78,7 @@ string GetCustomGamedataUrl(string cmdline)
     return ExtractArgString(pos, gamedataKey, modParams);
 }
 
-string GetCustomBinUrl(string cmdline)
+string GetCustomBinUrl(const string &cmdline)
 {
     const char* binKey = " -binlist ";
     string modParams = ' ' + cmdline + ' ';
@@ -90,7 +90,7 @@ string GetCustomBinUrl(string cmdline)
     return ExtractArgString(pos, binKey, modParams);
 }
 
-string GetPassword(string cmdline)
+string GetPassword(const string &cmdline)
 {
     const char* pswKey = " -psw ";
     string modParams = ' ' + cmdline + ' ';
@@ -102,7 +102,7 @@ string GetPassword(string cmdline)
     return ExtractArgString(pos, pswKey, modParams);
 }
 
-string GetServerIp(string cmdline)
+string GetServerIp(const const string &cmdline)
 {
     const char* SRV_IP = "-srv ";
     const char* SRV_DOMAIN= "-srvname ";
@@ -160,65 +160,32 @@ string GetServerIp(string cmdline)
 //end;
 }
 
-bool IsGameSpyDlForced(string cmdline)
+bool IsGameSpyDlForced(const string &cmdline)
 {
     return Find(" -gamespymode ", ' ' + cmdline + ' ');
 }
 
-bool IsSharedPatches(string cmdline)
+bool IsSharedPatches(const string &cmdline)
 {
     return Find(" -sharedpatches ", ' ' + cmdline + ' ');
 }
 
-//
-//function GetLogSeverity(cmdline: PAnsiChar):FZLogMessageSeverity;
-//const
-//  PARAM:string= ' -logsev ';
-//
-//  def_severity:FZLogMessageSeverity = FZ_LOG_INFO;
-//var
-//  posit, i, tmpres:integer;
-//  mod_params, tmp:string;
-//begin
-//  result:=def_severity;
-//
-//  mod_params:=cmdline+' ';
-//  posit:=Pos(PARAM, mod_params);
-//  if posit>0 then begin
-//    tmp:='';
-//    for i:=posit+length(PARAM) to length(mod_params) do begin
-//      if mod_params[i]=' ' then begin
-//        break;
-//      end else begin
-//        tmp:=tmp+mod_params[i];
-//      end;
-//    end;
-//    tmpres:=strtointdef(tmp, integer(def_severity));
-//
-//    if tmpres>integer(FZ_LOG_SILENT) then begin
-//      tmpres:=integer(FZ_LOG_SILENT);
-//    end;
-//
-//    result:=FZLogMessageSeverity(tmpres);
-//  end;
-//end;
-
-bool IsCmdLineNameNameNeeded(string cmdline)
+bool IsCmdLineNameNameNeeded(const string &cmdline)
 {
     return Find(" -includename ", ' ' + cmdline + ' ');
 }
 
-bool ForceShowMessage(string cmdline)
+bool ForceShowMessage(const string &cmdline)
 {
     return Find(" -preservemessage ", ' ' + cmdline + ' ');
 }
 
-bool IsMirrorsDisabled(string cmdline)
+bool IsMirrorsDisabled(const string &cmdline)
 {
     return Find(" -nomirrors ", ' ' + cmdline + ' ');
 }
 
-bool IsFullInstallMode(string cmdline)
+bool IsFullInstallMode(const string &cmdline)
 {
     return Find(" -fullinstall ", ' ' + cmdline + ' ');
 }
