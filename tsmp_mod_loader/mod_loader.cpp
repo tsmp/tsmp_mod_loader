@@ -10,7 +10,6 @@
 #pragma comment(lib, "shlwapi.lib")
 
 using std::endl;
-HMODULE CurrentModule;
 
 extern bool ForceShowMessage(const string &cmd);
 extern bool IsGameSpyDlForced(const string &cmdline);
@@ -30,28 +29,7 @@ extern bool ForceDirectories(const string &path);
 extern bool WinapiDownloadFile(const char* url, const char* path);
 extern void KillMutex();
 
-BOOL APIENTRY DllMain(HMODULE hModule, DWORD  ul_reason_for_call, LPVOID lpReserved)
-{
-	switch (ul_reason_for_call)
-	{
-	case DLL_PROCESS_ATTACH:
-	case DLL_THREAD_ATTACH:
-	case DLL_THREAD_DETACH:
-	case DLL_PROCESS_DETACH:
-		break;
-	}
-
-	CurrentModule = hModule;
-	return TRUE;
-}
-
-enum class FZDllModFunResult : u32
-{
-	FZ_DLL_MOD_FUN_SUCCESS_LOCK = 0,    //Мод успешно загрузился, требуется залочить клиента по name_lock
-	FZ_DLL_MOD_FUN_SUCCESS_NOLOCK = 1,  //Успех, лочить клиента (с использованием name_lock) пока не надо
-	FZ_DLL_MOD_FUN_FAILURE = 2			//Ошибка загрузки мода
-};
-
+extern std::string g_ModParams;
 using FZMasterLinkListAddr = vector<string>;
 
 struct FZFsLtxBuilderSettings
@@ -84,14 +62,6 @@ struct FZConfigBackup
 	u32 sz;
 };
 
-std::string _mod_rel_path;
-std::string _mod_name;
-std::string _mod_params;
-std::string mod_dir_prefix = ".svn\\";
-
-HINSTANCE _dll_handle;
-HANDLE _fz_loader_semaphore_handle;
-
 const char* gamedata_files_list_name = "gamedata_filelist.ini";
 const char* engine_files_list_name = "engine_filelist.ini";
 const char* master_mods_list_name = "master_mods_filelist.ini";
@@ -103,8 +73,7 @@ const char* patches_dir_name = "patches\\";
 const char* mp_dir_name = "mp\\";
 //const char* additional_keys_line_file  = "mod_key_line.txt";
 
-const char* fz_loader_semaphore_name = "Local\\FREEZONE_STK_MOD_LOADER_SEMAPHORE";
-const char* fz_loader_modules_mutex_name = "Local\\FREEZONE_STK_MOD_LOADER_MODULES_MUTEX";
+
 
 string BoolToStr(bool b)
 {
@@ -121,7 +90,7 @@ FZDownloaderThread* CreateDownloaderThreadForUrl(string url)
 	const char* httpsStr = "https";
 
 	// TODO: CURL
-	//if (IsGameSpyDlForced(_mod_params) && strncmp(url.c_str(), httpsStr, strlen(httpsStr)))
+	//if (IsGameSpyDlForced(g_ModParams) && strncmp(url.c_str(), httpsStr, strlen(httpsStr)))
 	{
 		Msg("- Creating GS dl thread");
 		return new FZGameSpyDownloaderThread();
@@ -216,12 +185,12 @@ FZMasterListApproveType DownloadAndParseMasterModsList(FZModSettings& settings, 
 	//}
 
 	tmp_settings = settings;
-	tmp_settings.binlist_url = GetCustomBinUrl(_mod_params);
-	tmp_settings.gamelist_url = GetCustomGamedataUrl(_mod_params);
-	tmp_settings.exe_name = GetExeName(_mod_params, "");
-	tmp_settings.fsltx_settings.full_install = IsFullInstallMode(_mod_params);
-	tmp_settings.fsltx_settings.share_patches_dir = IsSharedPatches(_mod_params);
-	tmp_settings.fsltx_settings.configs_dir = GetConfigsDir(_mod_params, "");
+	tmp_settings.binlist_url = GetCustomBinUrl(g_ModParams);
+	tmp_settings.gamelist_url = GetCustomGamedataUrl(g_ModParams);
+	tmp_settings.exe_name = GetExeName(g_ModParams, "");
+	tmp_settings.fsltx_settings.full_install = IsFullInstallMode(g_ModParams);
+	tmp_settings.fsltx_settings.share_patches_dir = IsSharedPatches(g_ModParams);
+	tmp_settings.fsltx_settings.configs_dir = GetConfigsDir(g_ModParams, "");
 
 	params_approved = FZ_MASTERLIST_NOT_APPROVED;
 	int j;
@@ -882,7 +851,7 @@ bool DoWork(string modName, string modPath) //Выполняется в отдельном потоке
 
 	bool message_initially_shown = false;
 
-	if (ForceShowMessage(_mod_params))
+	if (ForceShowMessage(g_ModParams))
 	{
 		message_initially_shown = VersionAbstraction()->IsMessageActive();
 		Msg("Initial message status is %s", message_initially_shown ? "true" : "false");
@@ -909,7 +878,7 @@ bool DoWork(string modName, string modPath) //Выполняется в отдельном потоке
 	VersionAbstraction()->AssignStatus("Preparing synchronization...");
 	VersionAbstraction()->ResetMasterServerError();
 
-	if (ForceShowMessage(_mod_params))
+	if (ForceShowMessage(g_ModParams))
 	{
 		if (message_initially_shown)
 		{
@@ -960,7 +929,7 @@ bool DoWork(string modName, string modPath) //Выполняется в отдельном потоке
 	FZFiles files;
 
 	// TODO: CURL
-	//if (IsGameSpyDlForced(_mod_params))
+	//if (IsGameSpyDlForced(g_ModParams))
 	files.SetDlMode(FZ_DL_MODE_GAMESPY);
 	//else
 	//	files.SetDlMode(FZ_DL_MODE_CURL);
@@ -1027,7 +996,7 @@ bool DoWork(string modName, string modPath) //Выполняется в отдельном потоке
 			}
 		}
 
-		if (flag || masterlinks_parse_result == FZ_MASTERLIST_ONLY_OLD_CONFIG || IsMirrorsDisabled(_mod_params))
+		if (flag || masterlinks_parse_result == FZ_MASTERLIST_ONLY_OLD_CONFIG || IsMirrorsDisabled(g_ModParams))
 			break;
 
 		//Попытка использовать зеркало окончилась неудачей - пробуем следующее
@@ -1120,7 +1089,7 @@ bool DoWork(string modName, string modPath) //Выполняется в отдельном потоке
 	VersionAbstraction()->AssignStatus("Running game...");
 
 	//Надо стартовать игру с модом
-	ip = GetServerIp(_mod_params);
+	ip = GetServerIp(g_ModParams);
 
 	if (ip.empty())
 	{
@@ -1130,21 +1099,21 @@ bool DoWork(string modName, string modPath) //Выполняется в отдельном потоке
 
 	//Подготовимся к перезапуску
 	Msg("Prepare to restart client");
-	port = GetServerPort(_mod_params);
+	port = GetServerPort(g_ModParams);
 	if (port < 0 || port > 65535)
 	{
 		Msg("! Cannot determine port");
 		return false;
 	}
 
-	if (IsCmdLineNameNameNeeded(_mod_params))
+	if (IsCmdLineNameNameNeeded(g_ModParams))
 	{
 		playername = VersionAbstraction()->GetPlayerName();
 		Msg("Using player name %s", playername.c_str());
 		playername = "/name=" + playername;
 	}
 
-	string psw = GetPassword(_mod_params);
+	string psw = GetPassword(g_ModParams);
 
 	if (!psw.empty())
 		psw = "/psw=" + psw;
@@ -1234,297 +1203,4 @@ bool DoWork(string modName, string modPath) //Выполняется в отдельном потоке
 		CloseHandle(pi.hThread);
 		return true;
 	}
-}
-
-void DecompressorLogger(string text)
-{
-	Msg("- [DECOMPR] %s", text.c_str());
-}
-
-bool InitModules()
-{
-	InitAbstractions();
-	Msg("- Abstractions Inited!");
-
-	//result: = result and Decompressor.Init(@DecompressorLogger);
-	// Init high-level
-	//result: = result and LogMgr.Init();
-
-	//FZLogMgr.Get.SetSeverity(FZ_LOG_INFO);
-	//FZLogMgr.Get.Write('Modules inited', FZ_LOG_INFO);
-
-	return true;
-}
-
-void FreeModules()
-{
-	Msg("- Free modules");
-	//Decompressor.Free();
-	//LogMgr.Free();
-	FreeAbstractions();
-}
-
-bool ThreadBody_internal()
-{
-	//Убедимся, что нам разрешено выделить ресурсы
-	HANDLE mutex = CreateMutex(nullptr, FALSE, fz_loader_modules_mutex_name);
-
-	if (!mutex || mutex == INVALID_HANDLE_VALUE)
-		return false;
-
-	if (WaitForSingleObject(mutex, INFINITE) != WAIT_OBJECT_0)
-	{
-		CloseHandle(mutex);
-		return false;
-	}
-
-	if (!InitModules())
-	{
-		ReleaseMutex(mutex);
-		CloseHandle(mutex);
-		return false;
-	}
-
-	Msg("- FreeZone Mod Loader TSMP v1");
-	Msg("- Build date: %s", __DATE__);
-	Msg("- Mod name is %s", _mod_name.c_str());
-	Msg("- Mod params %s", _mod_params.c_str());
-	Msg("Working thread started");
-
-	if (!DoWork(_mod_name, _mod_rel_path))
-	{
-		Msg("! Loading failed!");
-		VersionAbstraction()->SetVisualProgress(0);
-
-		if (VersionAbstraction()->IsMessageActive())
-			VersionAbstraction()->TriggerMessage();
-
-		VersionAbstraction()->AssignStatus("Downloading failed.Try again.");
-
-		u32 i = 0;
-
-		while (i < 10000 && !VersionAbstraction()->CheckForUserCancelDownload() && !VersionAbstraction()->CheckForLevelExist())
-		{
-			Sleep(1);
-			i = i + 1;
-		}
-
-		VersionAbstraction()->StopVisualDownload();
-	}
-
-	Msg("- Releasing resources");
-	VersionAbstraction()->ExecuteConsoleCommand("flush");
-
-	//FreeStringMemory();
-	FreeModules();
-
-	ReleaseMutex(mutex);
-	CloseHandle(mutex);
-	return true;
-}
-
-//Похоже, компиль не просекает, что FreeLibraryAndExitThread не возвращает управление. Из-за этого локальные переменные оказываются
-//не зачищены, и это рушит нам приложение. Для решения вопроса делаем свой асмовый враппер, лишенный указанных недостатков.
-u32 ThreadBody()
-{
-	__asm
-	{
-		call ThreadBody_internal
-
-		push[_dll_handle]
-		push eax
-
-		//Хэндл ДЛЛ надо занулить до освобождения семафора, но саму ДЛЛ выгрузить уже в самом конце - поэтому он сохранен в стеке
-		mov _dll_handle, 0
-
-		push[_fz_loader_semaphore_handle] // для вызова CloseHandle
-		push 0
-		push 1
-		push[_fz_loader_semaphore_handle]
-		mov[_fz_loader_semaphore_handle], 0
-		call ReleaseSemaphore
-		call CloseHandle
-
-		pop eax //Результат работы
-		pop ebx //сохраненный хэндл
-		cmp al, 0
-		je error_happen
-		push 0
-		call GetCurrentProcess
-		push eax
-		call TerminateProcess
-
-		error_happen :
-		push 0
-			push ebx
-			call FreeLibraryAndExitThread
-	}
-}
-
-bool RunModLoad()
-{
-	char path[MAX_PATH];
-	GetModuleFileName(CurrentModule, path, MAX_PATH);
-
-	//Захватим ДЛЛ для предотвращения выгрузки во время работы потока загрузчика
-	Msg("Path to loader is: %s", path);
-	_dll_handle = LoadLibrary(path);
-
-	if (!_dll_handle)
-	{
-		Msg("! Cannot acquire DLL %s", path);
-		return false;
-	}
-
-	//Начинаем синхронизацию файлов мода в отдельном потоке
-	Msg("Starting working thread");
-
-	if (!VersionAbstraction()->ThreadSpawn(ThreadBody, nullptr))
-	{
-		Msg("! Cannot start thread");
-		FreeLibrary(_dll_handle);
-		_dll_handle = 0;
-		return false;
-	}
-
-	return true;
-}
-
-void AbortConnection()
-{
-	Msg("Aborting connection");
-	VersionAbstraction()->AbortConnection();
-}
-
-bool ValidateInput(char* modName, char* modParams)
-{
-	const u32 MAX_NAME_SIZE = 4096;
-	const u32 MAX_PARAMS_SIZE = 4096;
-	const string allowed_symbols_in_mod_name = "1234567890abcdefghijklmnopqrstuvwxyz_";
-	const u32 modStrLen = strnlen_s(modName, MAX_NAME_SIZE);
-
-	if (modStrLen + mod_dir_prefix.size() > MAX_NAME_SIZE)
-	{
-		Msg("! Too long mod name, exiting");
-		return false;
-	}
-
-	if (strnlen_s(modParams, MAX_PARAMS_SIZE) >= MAX_PARAMS_SIZE)
-	{
-		Msg("! Too long mod params, exiting");
-		return false;
-	}
-
-	for (u32 i = 0; i < modStrLen; i++)
-	{
-		if (allowed_symbols_in_mod_name.find(modName[i]) == string::npos)
-		{
-			Msg("! Invalid mod name, exiting");
-			return false;
-		}
-	}
-
-	return true;
-}
-
-FZDllModFunResult ModLoad_internal(char* modName, char* modParams)
-{
-	FZDllModFunResult result = FZDllModFunResult::FZ_DLL_MOD_FUN_FAILURE;
-	HANDLE mutex = CreateMutex(nullptr, FALSE, fz_loader_modules_mutex_name);
-
-	if (!mutex || mutex == INVALID_HANDLE_VALUE || WaitForSingleObject(mutex, 0) != WAIT_OBJECT_0)
-		return result;
-
-	//Отлично, основной поток закачки не стартует, пока мы не отпустим мьютекс
-	if (InitModules())
-	{
-		AbortConnection();
-
-		if (ValidateInput(modName, modParams))
-		{
-			_mod_name = modName;
-			_mod_params = modParams;
-
-			//Благодаря этому хаку с префиксом, игра не полезет подгружать файлы мода при запуске оригинального клиента
-			_mod_rel_path = mod_dir_prefix;
-			_mod_rel_path += modName;
-
-			if (RunModLoad())
-			{
-				// Не лочимся - загрузка может окончиться неудачно либо быть отменена
-				// кроме того, повторный коннект при активной загрузке и выставленной инфе о моде приведет к неожиданным результатам
-				result = FZDllModFunResult::FZ_DLL_MOD_FUN_SUCCESS_NOLOCK;
-			}
-		}
-
-		//Основной поток закачки сам проинициализирует их заново - если не освобождать, происходит какая-то фигня при освобождении из другого потока.
-		FreeModules();
-	}
-
-	ReleaseMutex(mutex);
-	CloseHandle(mutex);
-	return result;
-}
-
-//
-////Схема работы загрузчика с ипользованием с мастер-списка модов:
-//// 1) Скачиваем мастер-список модов
-//// 2) Если мастер-список скачан и мод с таким названием есть в списке - используем ссылки на движок и геймдату
-////    из этого списка; если заданы кастомные и не совпадающие с теми, которые в списке - ругаемся и не работаем
-//// 3) Если мастер-список скачан, но мода с таким названием в нем нет - убеждаемся, что ссылка на движок либо не
-////    задана (используется текущий), либо есть среди других модов, либо на клиенте активен дебаг-режим. Если не
-////    выполняется ничего из этого - ругаемся и не работаем, если выполнено - используем указанные ссылки
-//// 4) Если мастер-список НЕ скачан - убеждаемся, что ссылка на движок либо не задана (надо использовать текущий),
-////    либо активен дебаг-режим на клиенте. Если это не выполнено - ругаемся и не работаем, иначе используем
-////    предоставленные пользователем ссылки.
-//// 5) Скачиваем сначала геймдатный список, затем движковый (чтобы не дать возможность переопределить в первом файлы второго)
-//// 6) Актуализируем файлы и рестартим клиент
-//
-////Доступные ключи запуска, передающиеся в mod_params:
-////-binlist <URL> - ссылка на адрес, по которому берется список файлов движка (для работы требуется запуск клиента с ключлм -fz_custom_bin)
-////-gamelist <URL> - ссылка на адрес, по которому берется список файлов мода (геймдатных\патчей)
-////-srv <IP> - IP-адрес сервера, к которому необходимо присоединиться после запуска мода
-////-srvname <domainname> - доменное имя, по которому располагается сервер. Можно использовать вместо параметра -srv в случае динамического IP сервера
-////-port <number> - порт сервера
-////-gamespymode - стараться использовать загрузку средствами GameSpy
-////-fullinstall - мод представляет собой самостоятельную копию игры, связь с файлами оригинальной не требуется
-////-sharedpatches - использовать общую с инсталляцией игры директорию патчей
-////-logsev <number> - уровень серьезности логируемых сообщений, по умолчанию FZ_LOG_ERROR
-////-configsdir <string> - директория конфигов
-////-exename <string> - имя исполняемого файла мода
-////-includename - включить в строку запуска мода параметр /name= с именем игрока
-////-preservemessage - показывать окно с сообщением о загрузке мода
-////-nomirrors - запретить скачивание списков файлов мода с URL, отличающихся от указанных в ключах -binlist/-gamelist
-
-extern "C" __declspec(dllexport) u32 __stdcall ModLoad(char* modName, char* modParams)
-{
-	HANDLE semaphore = CreateSemaphore(nullptr, 1, 1, fz_loader_semaphore_name);
-	FZDllModFunResult result = FZDllModFunResult::FZ_DLL_MOD_FUN_FAILURE;
-
-	if (!semaphore || semaphore == INVALID_HANDLE_VALUE)
-		return static_cast<u32>(result);
-
-	if (WaitForSingleObject(semaphore, 0) == WAIT_OBJECT_0)
-	{
-		// Отлично, семафор наш. Сохраним хендл на него для последующего освобождения
-		_fz_loader_semaphore_handle = semaphore;
-		_dll_handle = 0;
-
-		result = ModLoad_internal(modName, modParams);
-
-		// В случае успеха семафор будет разлочен в другом треде после окончания загрузки.
-		if (result == FZDllModFunResult::FZ_DLL_MOD_FUN_FAILURE && _dll_handle)
-		{
-			FreeLibrary(_dll_handle);
-			_dll_handle = 0;
-		}
-
-		_fz_loader_semaphore_handle = INVALID_HANDLE_VALUE;
-		ReleaseSemaphore(semaphore, 1, nullptr);
-		CloseHandle(semaphore);
-	}
-	else
-		CloseHandle(semaphore); // Не повезло, сворачиваемся.
-
-	return static_cast<u32>(result);
 }

@@ -20,6 +20,7 @@
     <ClCompile Include="HttpDownloader.cpp" />
     <ClCompile Include="FileManager.cpp" />
     <ClCompile Include="IniFile.cpp" />
+    <ClCompile Include="Kernel.cpp" />
     <ClCompile Include="Log.cpp" />
     <ClCompile Include="lowlevel\Abstractions.cpp" />
     <ClCompile Include="lowlevel\Decompressor.cpp" />
