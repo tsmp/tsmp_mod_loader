@@ -24,10 +24,10 @@ extern string GetExeName(const string &cmdline, const string &defVal);
 extern bool IsFullInstallMode(const string &cmdline);
 extern bool IsSharedPatches(const string &cmdline);
 extern string GetConfigsDir(const string &cmdline, const string &defVal);
-extern bool ForceDirectories(const string &path);
 
 extern bool WinapiDownloadFile(const char* url, const char* path);
 extern void KillMutex();
+extern bool ForceDirectories(const string& path);
 
 extern std::string g_ModParams;
 using FZMasterLinkListAddr = vector<string>;
@@ -71,9 +71,6 @@ const char* userdata_dir_name = "userdata\\";
 const char* engine_dir_name = "bin\\";
 const char* patches_dir_name = "patches\\";
 const char* mp_dir_name = "mp\\";
-//const char* additional_keys_line_file  = "mod_key_line.txt";
-
-
 
 string BoolToStr(bool b)
 {
@@ -100,16 +97,6 @@ FZDownloaderThread* CreateDownloaderThreadForUrl(string url)
 	//return new FZCurlDownloaderThread();
 }
 
-//procedure PushToArray(var a : FZMasterLinkListAddr; s:string);
-//var
-//i : integer;
-//begin
-//i : = length(a);
-//setlength(a, i + 1);
-//a[i]: = s;
-//end;
-
-
 string GenerateMirrorSuffixForIndex(int index)
 {
 	const char* MASTERLINKS_MIRROR_SUFFIX = "_mirror_";
@@ -127,24 +114,10 @@ enum FZMasterListApproveType
 	FZ_MASTERLIST_ONLY_OLD_CONFIG
 };
 
-FZMasterListApproveType DownloadAndParseMasterModsList(FZModSettings& settings, FZModMirrorsSettings& mirrors)
+FZMasterListApproveType DownloadAndParseMasterModsList(FZModSettings &settings, FZModMirrorsSettings &mirrors)
 {
-	FZMasterLinkListAddr master_links;
-	bool list_downloaded;
-	FZDownloaderThread* dlThread;
-	FZFileDownloader* dl;
-
-	string full_path;
-	FZMasterListApproveType params_approved;
-	string core_params;
-
-	FZModSettings tmp_settings;
-	string tmp1, tmp2;
-	bool binlist_valid, gamelist_valid;
-
 	const char* DEBUG_MODE_KEY = "-fz_customlists";
-	const char*
-		MASTERLINKS_BINLIST_KEY = "binlist";
+	const char* MASTERLINKS_BINLIST_KEY = "binlist";
 	const char* MASTERLINKS_GAMELIST_KEY = "gamelist";
 	const char* MASTERLINKS_FULLINSTALL_KEY = "fullinstall";
 	const char* MASTERLINKS_SHARED_PATCHES_KEY = "sharedpatches";
@@ -153,6 +126,7 @@ FZMasterListApproveType DownloadAndParseMasterModsList(FZModSettings& settings, 
 
 	FZMasterListApproveType result = FZ_MASTERLIST_NOT_APPROVED;
 
+	FZMasterLinkListAddr master_links;
 	master_links.push_back("http://stalker-life.com/stalker_files/mods_shoc/tsmp3/ModMasterLinks.txt");
 	master_links.push_back("https://raw.githubusercontent.com/FreeZoneMods/modmasterlinks/master/links.ini"); // TODO: решить вопрос с https
 	master_links.push_back("http://www.gwrmod.tk/files/mods_links.ini");
@@ -160,14 +134,13 @@ FZMasterListApproveType DownloadAndParseMasterModsList(FZModSettings& settings, 
 	master_links.push_back("http://stalker.stagila.ru:8080/stcs_emergency/mods_links.ini");
 	master_links.push_back("http://www.gwrmod.tk/files/mods_links_low_priority.ini");
 
-	list_downloaded = false;
-	full_path = settings.root_dir + master_mods_list_name;
+	bool list_downloaded = false;
+	string full_path = settings.root_dir + master_mods_list_name;
+	FZDownloaderThread* dlThread = CreateDownloaderThreadForUrl(master_links[0]);
 
-	dlThread = CreateDownloaderThreadForUrl(master_links[0]);
 	for (u32 i = 0; i < master_links.size(); i++)
 	{
-
-		dl = dlThread->CreateDownloader(master_links[i], full_path, 0);
+		FZFileDownloader* dl = dlThread->CreateDownloader(master_links[i], full_path, 0);
 		list_downloaded = dl->StartSyncDownload();
 		delete dl;
 		if (list_downloaded)
@@ -176,6 +149,7 @@ FZMasterListApproveType DownloadAndParseMasterModsList(FZModSettings& settings, 
 
 	delete dlThread;
 
+	// TODO: fix
 	//for (u32 i = 0; i < master_links.size(); i++)
 	//{
 	//	list_downloaded = WinapiDownloadFile(master_links[i].c_str(), full_path.c_str());
@@ -184,7 +158,7 @@ FZMasterListApproveType DownloadAndParseMasterModsList(FZModSettings& settings, 
 	//		break;
 	//}
 
-	tmp_settings = settings;
+	FZModSettings tmp_settings = settings;
 	tmp_settings.binlist_url = GetCustomBinUrl(g_ModParams);
 	tmp_settings.gamelist_url = GetCustomGamedataUrl(g_ModParams);
 	tmp_settings.exe_name = GetExeName(g_ModParams, "");
@@ -192,11 +166,14 @@ FZMasterListApproveType DownloadAndParseMasterModsList(FZModSettings& settings, 
 	tmp_settings.fsltx_settings.share_patches_dir = IsSharedPatches(g_ModParams);
 	tmp_settings.fsltx_settings.configs_dir = GetConfigsDir(g_ModParams, "");
 
-	params_approved = FZ_MASTERLIST_NOT_APPROVED;
-	int j;
+	FZMasterListApproveType params_approved = FZ_MASTERLIST_NOT_APPROVED;	
 
 	if (list_downloaded)
 	{
+		string tmp1, tmp2;
+		bool binlist_valid, gamelist_valid;
+		int j;
+
 		// Мастер-список успешно скачался, будем парсить его содержимое
 		FZIniFile cfg(full_path);
 		for (int i = 0; i < cfg.GetSectionsCount(); i++)
@@ -308,8 +285,10 @@ FZMasterListApproveType DownloadAndParseMasterModsList(FZModSettings& settings, 
 				while (!binlist_valid)
 				{
 					tmp1 = cfg.GetStringDef(tmp2, MASTERLINKS_BINLIST_KEY + GenerateMirrorSuffixForIndex(j), "");
+
 					if (tmp1.empty() && cfg.GetStringDef(tmp2, MASTERLINKS_GAMELIST_KEY + GenerateMirrorSuffixForIndex(j), "").empty())
 						break;
+					
 					binlist_valid = tmp1 == tmp_settings.binlist_url;
 					j = j + 1;
 				}
@@ -330,6 +309,7 @@ FZMasterListApproveType DownloadAndParseMasterModsList(FZModSettings& settings, 
 	{
 		//Список почему-то не скачался. Ограничимся геймдатными и скачанными ранее модами.
 		Msg("! Cannot download master links!");
+
 		if (tmp_settings.binlist_url.empty() && !tmp_settings.gamelist_url.empty())
 		{
 			Msg("Gamedata mod approved");
@@ -337,14 +317,12 @@ FZMasterListApproveType DownloadAndParseMasterModsList(FZModSettings& settings, 
 		}
 		else
 		{
-
 			params_approved = FZ_MASTERLIST_ONLY_OLD_CONFIG;
 			Msg("Only old mods approved");
-
 		}
 	}
 
-	core_params = VersionAbstraction()->GetCoreParams();
+	string core_params = VersionAbstraction()->GetCoreParams();
 
 	if (params_approved != FZ_MASTERLIST_NOT_APPROVED || core_params.find(DEBUG_MODE_KEY) != string::npos)
 	{
@@ -352,7 +330,6 @@ FZMasterListApproveType DownloadAndParseMasterModsList(FZModSettings& settings, 
 
 		std::replace(settings.exe_name.begin(), settings.exe_name.end(), '\\', '_');
 		std::replace(settings.exe_name.begin(), settings.exe_name.end(), '/', '_');
-		//std::replace(settings.exe_name.begin(), settings.exe_name.end(), "..", "__");
 
 		if (core_params.find(DEBUG_MODE_KEY) != string::npos)
 		{
@@ -367,22 +344,9 @@ FZMasterListApproveType DownloadAndParseMasterModsList(FZModSettings& settings, 
 }
 
 bool DownloadAndApplyFileList(string url, string list_filename, string root_dir, FZMasterListApproveType masterlinks_type, FZFiles &fileList, bool update_progress)
-{
-	FZFileDownloader* dl;
-	string filepath;
-	int i, files_count;
-
-	string section;
-	FZCheckParams fileCheckParams;
-	string fileurl;
-	string filename;
-	u32 compression;
-	FZDownloaderThread* thread;
-	u32 starttime, last_update_time;
-	const u32 MAX_NO_UPDATE_DELTA = 5000;
-
-	bool result = false;
-	filepath = root_dir + list_filename;
+{	
+	const u32 MAX_NO_UPDATE_DELTA = 1000;
+	string filepath = root_dir + list_filename;
 
 	if (masterlinks_type == FZ_MASTERLIST_ONLY_OLD_CONFIG)
 	{
@@ -392,21 +356,21 @@ bool DownloadAndApplyFileList(string url, string list_filename, string root_dir,
 	else if (masterlinks_type == FZ_MASTERLIST_NOT_APPROVED)
 	{
 		Msg("! Master links dont allow the mod");
-		return result;
+		return false;
 	}
 	else
 	{
 		if (url.empty())
 		{
 			Msg("! No list URL specified");
-			return result;
+			return false;
 		}
 
 		Msg("Downloading list %s to %s", url.c_str(), filepath.c_str());
 
-		thread = CreateDownloaderThreadForUrl(url);
-		dl = thread->CreateDownloader(url, filepath, 0);
-		result = dl->StartSyncDownload();
+		FZDownloaderThread* thread = CreateDownloaderThreadForUrl(url);
+		FZFileDownloader* dl = thread->CreateDownloader(url, filepath, 0);
+		bool result = dl->StartSyncDownload();
 		delete dl;
 		delete thread;
 
@@ -417,33 +381,29 @@ bool DownloadAndApplyFileList(string url, string list_filename, string root_dir,
 		}
 	}
 
-	result = false;
-
 	FZIniFile cfg(filepath);
-	files_count = cfg.GetIntDef("main", "files_count", 0);
+	int files_count = cfg.GetIntDef("main", "files_count", 0);
+
 	if (!files_count)
 	{
 		Msg("! No files in file list");
 		return false;
 	}
 
-	starttime = GetCurrentTime();
-	last_update_time = starttime;
+	u32 starttime = GetCurrentTime();
+	u32 last_update_time = starttime;
 
-	for (i = 0; i < files_count; i++)
+	for (int i = 0; i < files_count; i++)
 	{
-
-		section = "file_" + std::to_string(i);
+		string section = "file_" + std::to_string(i);
 		Msg("- Parsing section %s", section.c_str());
+		string filename = cfg.GetStringDef(section, "path", "");
 
-		filename = cfg.GetStringDef(section, "path", "");
 		if (filename.empty())
 		{
-
 			Msg("! Invalid name for file %u", i);
 			return false;
 		}
-
 
 		if (cfg.GetBoolDef(section, "ignore", false))
 		{
@@ -455,16 +415,18 @@ bool DownloadAndApplyFileList(string url, string list_filename, string root_dir,
 		}
 		else
 		{
-			fileurl = cfg.GetStringDef(section, "url", "");
+			string fileurl = cfg.GetStringDef(section, "url", "");
+
 			if (fileurl.empty())
 			{
 				Msg("! Invalid url for file %u", i);
 				return false;
 			}
 
-			compression = cfg.GetIntDef(section, "compression", 0);
-
+			FZCheckParams fileCheckParams;
 			fileCheckParams.crc32 = 0;
+			u32 compression = cfg.GetIntDef(section, "compression", 0);
+
 			if (!cfg.GetHex(section, "crc32", fileCheckParams.crc32))
 			{
 				Msg("! Invalid crc32 for file %u", i);
@@ -472,6 +434,7 @@ bool DownloadAndApplyFileList(string url, string list_filename, string root_dir,
 			}
 
 			fileCheckParams.size = cfg.GetIntDef(section, "size", 0);
+
 			if (!fileCheckParams.size)
 			{
 				Msg("! Invalid size for file %u", i);
@@ -544,7 +507,6 @@ bool DownloadCallback(FZFileActualizingProgressInfo info, void* userdata)
 
 bool BuildFsGame(string filename, FZFsLtxBuilderSettings settings)
 {
-	string tmp;
 	std::ofstream f;
 	f.open(filename);
 
@@ -629,56 +591,47 @@ bool BuildFsGame(string filename, FZFsLtxBuilderSettings settings)
 bool CopyFileIfValid(string src_path, string dst_path, FZCheckParams targetParams)
 {
 	FZCheckParams fileCheckParams;
-	string dst_dir;
-	bool result = false;
 
-	if (GetFileChecks(src_path, fileCheckParams, !targetParams.md5.empty()))
+	if (!GetFileChecks(src_path, fileCheckParams, !targetParams.md5.empty()))
+		return false;
+	
+	if (!CompareFiles(fileCheckParams, targetParams))
 	{
-		if (CompareFiles(fileCheckParams, targetParams))
-		{
-			dst_dir = dst_path;
-
-			while (dst_dir[dst_dir.size() - 1] != '\\' && dst_dir[dst_dir.size() - 1] != '/')
-			{
-				dst_dir.resize(dst_dir.size() - 1);
-			}
-			ForceDirectories(dst_dir);
-
-			if (CopyFile(src_path.c_str(), dst_path.c_str(), false))
-			{
-				Msg(" Copied %s to %s", src_path.c_str(), dst_path.c_str());
-				result = true;
-			}
-			else
-			{
-				Msg("! Cannot copy file %s to %s", src_path.c_str(), dst_path.c_str());
-			}
-		}
-		else
-		{
-			Msg("! Checksum or size not equal to target");
-		}
+		Msg("! Checksum or size not equal to target");
+		return false;
 	}
 
-	return result;
+	string dst_dir = dst_path;
+
+	while (dst_dir[dst_dir.size() - 1] != '\\' && dst_dir[dst_dir.size() - 1] != '/')
+		dst_dir.resize(dst_dir.size() - 1);
+
+	ForceDirectories(dst_dir);
+
+	if (!CopyFile(src_path.c_str(), dst_path.c_str(), false))
+	{
+		Msg("! Cannot copy file %s to %s", src_path.c_str(), dst_path.c_str());
+		return false;
+	}
+
+	Msg(" Copied %s to %s", src_path.c_str(), dst_path.c_str());
+	return true;
 }
 
 void PreprocessFiles(FZFiles &files, string mod_root)
 {
 	const char* NO_PRELOAD = "-fz_nopreload";
-	int i;
-	pFZFileItemData e;
-	string core_root;
-	string filename;
-	string src, dst;
+
+	// TODO: what is it?
 	bool disable_preload = true; // VersionAbstraction()->GetCoreParams().find(NO_PRELOAD) != string::npos;
 
 	files.AddIgnoredFile(gamedata_files_list_name);
 	files.AddIgnoredFile(engine_files_list_name);
 
-	for (i = files.EntriesCount() - 1; i >= 0; i--)
+	for (int i = files.EntriesCount() - 1; i >= 0; i--)
 	{
-		e = files.GetEntry(i);
+		string filename, src, dst;
+		pFZFileItemData e = files.GetEntry(i);
 
 		if (!strncmp(e->name.c_str(), userdata_dir_name, strlen(userdata_dir_name)) && e->required_action == FZ_FILE_ACTION_UNDEFINED)
 		{
@@ -690,7 +643,7 @@ void PreprocessFiles(FZFiles &files, string mod_root)
 			if (!disable_preload)
 			{
 				//Проверим, есть ли уже такой файл в текущем движке
-				core_root = VersionAbstraction()->GetCoreApplicationPath();
+				string core_root = VersionAbstraction()->GetCoreApplicationPath();
 				filename = e->name;
 				filename.erase(0, strlen(engine_dir_name));
 				src = core_root + filename;
@@ -733,21 +686,15 @@ void PreprocessFiles(FZFiles &files, string mod_root)
 
 FZConfigBackup CreateConfigBackup(string filename)
 {
-	HANDLE f;
-	u32 sz;
-	DWORD readcnt;
-	bool success;
 	const u32 MAX_LEN = 1 * 1024 * 1024;
 
 	FZConfigBackup result;
-	//result.filename: = '';
-	//result.buf = nullptr;
 	result.sz = 0;
 
 	if (filename.empty())
 		return result;
 
-	f = CreateFile(filename.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
+	HANDLE f = CreateFile(filename.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
 	Msg("Backup config %s, handle %u", filename.c_str(), reinterpret_cast<u32>(f));
 
 	if (f == INVALID_HANDLE_VALUE)
@@ -758,10 +705,9 @@ FZConfigBackup CreateConfigBackup(string filename)
 
 	//__try
 	{
-		success = false;
-		readcnt = 0;
+		DWORD readcnt = 0;
 
-		sz = GetFileSize(f, nullptr);
+		u32 sz = GetFileSize(f, nullptr);
 		Msg("Size of the config file %s is %u", filename.c_str(), sz);
 
 		if (sz > MAX_LEN)
@@ -780,7 +726,6 @@ FZConfigBackup CreateConfigBackup(string filename)
 
 		result.sz = sz;
 		result.filename = filename;
-		success = true;
 	}
 	//__except (EXCEPTION_EXECUTE_HANDLER)
 	//{
@@ -796,162 +741,169 @@ FZConfigBackup CreateConfigBackup(string filename)
 
 bool FreeConfigBackup(FZConfigBackup backup, bool need_restore)
 {
-	HANDLE f;
-	DWORD writecnt;
+	if (!need_restore)
+		return false;
+
 	bool result = false;
+	HANDLE f = CreateFile(backup.filename.c_str(), GENERIC_WRITE, 0, 0, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
+	Msg("Restoring backup config %s, handle %u", backup.filename.c_str(), reinterpret_cast<u32>(f));
 
-	if (need_restore)
+	if (f == INVALID_HANDLE_VALUE)
+		Msg("! Error opening file %s", backup.filename.c_str());
+	else
 	{
-		f = CreateFile(backup.filename.c_str(), GENERIC_WRITE, 0, 0, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
-		Msg("Restoring backup config %s, handle %u", backup.filename.c_str(), reinterpret_cast<u32>(f));
+		DWORD writecnt = 0;
 
-		if (f == INVALID_HANDLE_VALUE)
-			Msg("! Error opening file %s", backup.filename.c_str());
+		if (!WriteFile(f, backup.buf.data(), backup.sz, &writecnt, nullptr) || backup.sz != writecnt)
+			Msg("! Error writing file %s", backup.filename.c_str());
 		else
-		{
-			writecnt = 0;
+			result = true;
 
-			if (!WriteFile(f, backup.buf.data(), backup.sz, &writecnt, nullptr) || backup.sz != writecnt)
-				Msg("! Error writing file %s", backup.filename.c_str());
-			else
-				result = true;
-
-			CloseHandle(f);
-		}
+		CloseHandle(f);
 	}
 
 	return result;
 }
 
-extern bool ForceDirectories(const string& path);
-
-bool DoWork(string modName, string modPath) //Выполняется в отдельном потоке
+void BuildUserLtx(const FZModSettings &settings)
 {
-	string ip;
-	int port;
+	VersionAbstraction()->AssignStatus("Building userltx...");
 
-	long long last_downloaded_bytes;
+	//если user.ltx отсутствует в userdata - нужно сделать его там
+	if (!FileExists(settings.root_dir + userdata_dir_name + userltx_name))
+	{
+		Msg("Building userltx");
+		//в случае с SACE команда на сохранение не срабатывает, поэтому сначала скопируем файл
+		string dstname = settings.root_dir + userdata_dir_name;
+		ForceDirectories(dstname);
+		dstname = dstname + userltx_name;
+		string srcname = VersionAbstraction()->UpdatePath("$app_data_root$", "user.ltx");
+		Msg("Copy from %s to %s", srcname.c_str(), dstname.c_str());
+		CopyFile(srcname.c_str(), dstname.c_str(), false);
+		VersionAbstraction()->ExecuteConsoleCommand("cfg_save " + dstname);
+	}
+}
 
+void ShowMessageBox()
+{
+	if (!ForceShowMessage(g_ModParams))
+		return;
 
-	//files, files_cp:FZFiles;
+	bool messageInitiallyShown = VersionAbstraction()->IsMessageActive();
+	Msg("Initial message status is %s", BoolToStr(messageInitiallyShown).c_str());	
 
+	if (messageInitiallyShown)
+	{
+		//Ждем, пока исчезнет сообщение о коннекте к мастер-серверу
+		while (VersionAbstraction()->IsServerListUpdateActive())
+			Sleep(1);
+	}
 
-	string cmdline, cmdapp, workingdir;
-	string srcname, dstname;
-	string fullPathToCurEngine;
+	//Дождемся подходящего для показа момента
+	Msg("Prepare for message displaying");
+	VersionAbstraction()->PrepareForMessageShowing();
+
+	//Включим его обратно
+	Msg("Activating message");
+	VersionAbstraction()->TriggerMessage();
+}
+
+bool Finalize(const FZModSettings &settings)
+{
+	//Надо стартовать игру с модом
+	VersionAbstraction()->AssignStatus("Running game...");
+	
+	string ip = GetServerIp(g_ModParams);
+
+	if (ip.empty())
+	{
+		Msg("! Cannot determine IP address of the server");
+		return false;
+	}
+
+	//Подготовимся к перезапуску
+	Msg("Prepare to restart client");
+	int port = GetServerPort(g_ModParams);
+
+	if (port < 0 || port > 65535)
+	{
+		Msg("! Cannot determine port");
+		return false;
+	}
 
 	string playername;
 
-	//add_params_file:textfile;
-	string add_params;
-	int mirror_id;
-	bool flag;
-
-	FZConfigBackup old_gamelist, old_binlist;
-
-	bool message_initially_shown = false;
-
-	if (ForceShowMessage(g_ModParams))
+	if (IsCmdLineNameNameNeeded(g_ModParams))
 	{
-		message_initially_shown = VersionAbstraction()->IsMessageActive();
-		Msg("Initial message status is %s", message_initially_shown ? "true" : "false");
+		playername = VersionAbstraction()->GetPlayerName();
+		Msg("Using player name %s", playername.c_str());
+		playername = "/name=" + playername;
 	}
 
-	//Пока идет коннект(существует уровень) - не начинаем работу
-	while (VersionAbstraction()->CheckForLevelExist())
-		Sleep(10);
+	string psw = GetPassword(g_ModParams);
+	string cmdapp, cmdline, workingdir;
 
-	//Пауза для нормального обновления мастер-листа
-	Sleep(100); //Слип тут чтобы поток обновления гарантированно запустился - мало ли
+	if (!psw.empty())
+		psw = "/psw=" + psw;
 
-	while (VersionAbstraction()->IsServerListUpdateActive())
-		Sleep(1);
-
-	Msg("Starting visual download");
-
-	if (!VersionAbstraction()->StartVisualDownload())
+	if (!settings.binlist_url.empty())
 	{
-		Msg("! Cannot start visual download");
-		return false;
-	}
+		// Нестандартный двиг мода
+		cmdapp = settings.root_dir + "bin\\";
 
-	VersionAbstraction()->AssignStatus("Preparing synchronization...");
-	VersionAbstraction()->ResetMasterServerError();
-
-	if (ForceShowMessage(g_ModParams))
-	{
-		if (message_initially_shown)
+		if (!settings.exe_name.empty())
 		{
-			//Ждем, пока исчезнет сообщение о коннекте к мастер-серверу
-			while (VersionAbstraction()->IsServerListUpdateActive())
-				Sleep(1);
+			cmdapp = cmdapp + settings.exe_name;
+			cmdline = settings.exe_name;
+		}
+		else
+		{
+			cmdapp = cmdapp + VersionAbstraction()->GetEngineExeFileName();
+			cmdline = VersionAbstraction()->GetEngineExeFileName();
 		}
 
-		//Дождемся подходящего для показа момента
-		Msg("Prepare for message displaying");
-		VersionAbstraction()->PrepareForMessageShowing();
-
-		//Включим его обратно
-		Msg("Activating message");
-		VersionAbstraction()->TriggerMessage();
+		cmdline = cmdline + " -start client(" + ip + "/port=" + std::to_string(port) + playername + psw + ')';
+		workingdir = settings.root_dir;
 	}
 
-	//Получим путь к корневой (установочной) диектории мода
-	FZModSettings mod_settings;
-	mod_settings.modname = modName;
-	mod_settings.root_dir = VersionAbstraction()->UpdatePath("$app_data_root$", modPath);
-
-	if (mod_settings.root_dir[mod_settings.root_dir.size() - 1] != '\\' && mod_settings.root_dir[mod_settings.root_dir.size() - 1] != '//')
-		mod_settings.root_dir += '\\';
-
-	Msg("- Path to mod is %s", mod_settings.root_dir.c_str());
-
-	if (!ForceDirectories(mod_settings.root_dir))
+	//Точка невозврата. Убедимся, что пользователь не отменил загрузку
+	if (VersionAbstraction()->CheckForUserCancelDownload())
 	{
-		Msg("! Cannot create root directory");
+		Msg("! Cancelled by user");
 		return false;
 	}
 
-	VersionAbstraction()->AssignStatus("Parsing master links list...");
-	FZModMirrorsSettings mirrors;
+	Msg("cmdapp: %s", cmdapp.c_str());
+	Msg("cmdline: %s", cmdline.c_str());
 
-	FZMasterListApproveType masterlinks_parse_result = DownloadAndParseMasterModsList(mod_settings, mirrors);
+	STARTUPINFO si;
+	PROCESS_INFORMATION pi;
+	FillMemory(&si, sizeof(si), 0);
+	FillMemory(&pi, sizeof(pi), 0);
+	si.cb = sizeof(si);
 
-	if (masterlinks_parse_result == FZ_MASTERLIST_NOT_APPROVED)
+	//Прибьем блокирующий запуск нескольких копий сталкера мьютекс
+	KillMutex();
+
+	//Запустим клиента
+	if (!CreateProcess(cmdapp.c_str(), cmdline.data(), 0, 0, false, CREATE_SUSPENDED, 0, workingdir.c_str(), &si, &pi))
 	{
-		Msg("! Master links disallow running the mod!");
+		Msg("! Cannot run application");
 		return false;
 	}
-
-	VersionAbstraction()->AssignStatus("Scanning directory...");
-	//Просканируем корневую директорию на содержимое
-
-	FZFiles files;
-
-	// TODO: CURL
-	//if (IsGameSpyDlForced(g_ModParams))
-	files.SetDlMode(FZ_DL_MODE_GAMESPY);
-	//else
-	//	files.SetDlMode(FZ_DL_MODE_CURL);
-
-	last_downloaded_bytes = 0;
-	files.SetCallback(DownloadCallback, &last_downloaded_bytes);
-
-	if (!files.ScanPath(mod_settings.root_dir))
+	else
 	{
-		Msg("! Scanning root directory failed!");
-		return false;
+		ResumeThread(pi.hThread);
+		CloseHandle(pi.hProcess);
+		CloseHandle(pi.hThread);
+		return true;
 	}
+}
 
-	//Создадим копию текущего состояния - пригодится при переборе зеркал
-	FZFiles files_cp;
-	files_cp.Copy(files);
-
-	//Также прочитаем и запомним содержимое binlist и gamelist - чтобы попробовать использовать старый конфиг, если ни одно из зеркал не окажется доступным.
-	old_gamelist = CreateConfigBackup(mod_settings.root_dir + gamedata_files_list_name);
-	old_binlist = CreateConfigBackup(mod_settings.root_dir + engine_files_list_name);
-
-	mirror_id = 0;
+bool GetFileLists(FZFiles &files_cp, FZFiles& files, FZModSettings &mod_settings, FZMasterListApproveType masterlinks_parse_result, FZModMirrorsSettings &mirrors)
+{
+	int mirror_id = 0;
+	bool flag;
 
 	do
 	{
@@ -1009,6 +961,91 @@ bool DoWork(string modName, string modPath) //Выполняется в отдельном потоке
 		mirror_id = mirror_id + 1;
 	} while (mirror_id > mirrors.binlist_urls.size() || mirror_id > mirrors.gamelist_urls.size());  //Внимание! Тут все верно! Не ставить больше либо равно - первая итерация берет ссылки не из mirrors!
 
+	return flag;
+}
+
+//Выполняется в отдельном потоке
+bool DoWork(string modName, string modPath) 
+{
+	//Пока идет коннект(существует уровень) - не начинаем работу
+	while (VersionAbstraction()->CheckForLevelExist())
+		Sleep(10);
+
+	//Пауза для нормального обновления мастер-листа
+	Sleep(100); //Слип тут чтобы поток обновления гарантированно запустился - мало ли
+
+	while (VersionAbstraction()->IsServerListUpdateActive())
+		Sleep(1);
+
+	Msg("Starting visual download");
+
+	if (!VersionAbstraction()->StartVisualDownload())
+	{
+		Msg("! Cannot start visual download");
+		return false;
+	}
+
+	VersionAbstraction()->AssignStatus("Preparing synchronization...");
+	VersionAbstraction()->ResetMasterServerError();
+
+	ShowMessageBox();
+
+	//Получим путь к корневой (установочной) диектории мода
+	FZModSettings mod_settings;
+	mod_settings.modname = modName;
+	mod_settings.root_dir = VersionAbstraction()->UpdatePath("$app_data_root$", modPath);
+
+	if (mod_settings.root_dir[mod_settings.root_dir.size() - 1] != '\\' && mod_settings.root_dir[mod_settings.root_dir.size() - 1] != '//')
+		mod_settings.root_dir += '\\';
+
+	Msg("- Path to mod is %s", mod_settings.root_dir.c_str());
+
+	if (!ForceDirectories(mod_settings.root_dir))
+	{
+		Msg("! Cannot create root directory");
+		return false;
+	}
+
+	VersionAbstraction()->AssignStatus("Parsing master links list...");
+	FZModMirrorsSettings mirrors;
+	FZMasterListApproveType masterlinks_parse_result = DownloadAndParseMasterModsList(mod_settings, mirrors);
+
+	if (masterlinks_parse_result == FZ_MASTERLIST_NOT_APPROVED)
+	{
+		Msg("! Master links disallow running the mod!");
+		return false;
+	}
+
+	VersionAbstraction()->AssignStatus("Scanning directory...");
+	//Просканируем корневую директорию на содержимое
+
+	FZFiles files;
+
+	// TODO: CURL
+	//if (IsGameSpyDlForced(g_ModParams))
+	files.SetDlMode(FZ_DL_MODE_GAMESPY);
+	//else
+	//	files.SetDlMode(FZ_DL_MODE_CURL);
+
+	long long last_downloaded_bytes = 0;
+	files.SetCallback(DownloadCallback, &last_downloaded_bytes);
+
+	if (!files.ScanPath(mod_settings.root_dir))
+	{
+		Msg("! Scanning root directory failed!");
+		return false;
+	}
+
+	//Создадим копию текущего состояния - пригодится при переборе зеркал
+	FZFiles files_cp;
+	files_cp.Copy(files);
+
+	//Также прочитаем и запомним содержимое binlist и gamelist - чтобы попробовать использовать старый конфиг, если ни одно из зеркал не окажется доступным.
+	FZConfigBackup old_gamelist = CreateConfigBackup(mod_settings.root_dir + gamedata_files_list_name);
+	FZConfigBackup old_binlist = CreateConfigBackup(mod_settings.root_dir + engine_files_list_name);
+
+	bool flag = GetFileLists(files_cp, files, mod_settings, masterlinks_parse_result, mirrors);
+
 	//Если не удалось скачать ни с одного из зеркал - пробуем запуститься с тем, что уже есть у нас
 	if (!flag && masterlinks_parse_result != FZ_MASTERLIST_ONLY_OLD_CONFIG)
 	{
@@ -1045,11 +1082,12 @@ bool DoWork(string modName, string modPath) //Выполняется в отдельном потоке
 	PreprocessFiles(files, mod_settings.root_dir);
 	Msg("=======Sorting files=======");
 	files.SortBySize();
-	files.Dump(/*FZ_LOG_INFO*/);
+	files.Dump();
 	VersionAbstraction()->AssignStatus("Downloading content...");
 
 	//Выполним синхронизацию файлов
 	Msg("=======Actualizing game data=======");
+
 	if (!files.ActualizeFiles())
 	{
 		Msg("! Actualizing files failed!");
@@ -1070,137 +1108,6 @@ bool DoWork(string modName, string modPath) //Выполняется в отдельном потоке
 		return false;
 	}
 
-	VersionAbstraction()->AssignStatus("Building userltx...");
-
-	//если user.ltx отсутствует в userdata - нужно сделать его там
-	if (!FileExists(mod_settings.root_dir + userdata_dir_name + userltx_name))
-	{
-		Msg("Building userltx");
-		//в случае с SACE команда на сохранение не срабатывает, поэтому сначала скопируем файл
-		dstname = mod_settings.root_dir + userdata_dir_name;
-		ForceDirectories(dstname);
-		dstname = dstname + userltx_name;
-		srcname = VersionAbstraction()->UpdatePath("$app_data_root$", "user.ltx");
-		Msg("Copy from %s to %s", srcname.c_str(), dstname.c_str());
-		CopyFile(srcname.c_str(), dstname.c_str(), false);
-		VersionAbstraction()->ExecuteConsoleCommand("cfg_save " + dstname);
-	}
-
-	VersionAbstraction()->AssignStatus("Running game...");
-
-	//Надо стартовать игру с модом
-	ip = GetServerIp(g_ModParams);
-
-	if (ip.empty())
-	{
-		Msg("! Cannot determine IP address of the server");
-		return false;
-	}
-
-	//Подготовимся к перезапуску
-	Msg("Prepare to restart client");
-	port = GetServerPort(g_ModParams);
-	if (port < 0 || port > 65535)
-	{
-		Msg("! Cannot determine port");
-		return false;
-	}
-
-	if (IsCmdLineNameNameNeeded(g_ModParams))
-	{
-		playername = VersionAbstraction()->GetPlayerName();
-		Msg("Using player name %s", playername.c_str());
-		playername = "/name=" + playername;
-	}
-
-	string psw = GetPassword(g_ModParams);
-
-	if (!psw.empty())
-		psw = "/psw=" + psw;
-
-	//assignfile(add_params_file, additional_keys_line_file);
-	//try
-	//	reset(add_params_file);
-	//try
-	//	readln(add_params_file, add_params);
-	//finally
-	//	closefile(add_params_file);
-	//end;
-	//except
-	//	add_params : = '';
-	//end;
-
-	Msg("User-defined restart params: %s", add_params);
-
-	if (!mod_settings.binlist_url.empty())
-	{
-		// Нестандартный двиг мода
-		cmdapp = mod_settings.root_dir + "bin\\";
-
-		if (!mod_settings.exe_name.empty())
-		{
-			cmdapp = cmdapp + mod_settings.exe_name;
-			cmdline = mod_settings.exe_name;
-		}
-		else 
-		{
-			cmdapp = cmdapp + VersionAbstraction()->GetEngineExeFileName();
-			cmdline = VersionAbstraction()->GetEngineExeFileName();
-		}
-
-		//-fzmod - показывает имя мода; -fz_nomod - тключает загрузку модов (чтобы не впасть в рекурсию/старая версия)
-		//так как проверка на имя мода идет первой, то все должно работать
-		cmdline = cmdline + ' ' + add_params + " -fz_nomod -fzmod " + mod_settings.modname + " -start client(" + ip + "/port=" + std::to_string(port) + playername + psw + ')';
-		workingdir = mod_settings.root_dir;
-	}
-	//	else
-	//	{
-	//		begin
-	//		// Используем текущий двиг
-	//		sz : = 128;
-	//fullPathToCurEngine: = nil;
-	//	repeat
-	//		if fullPathToCurEngine <> nil then FreeMem(fullPathToCurEngine, sz);
-	//sz: = sz * 2;
-	//	GetMem(fullPathToCurEngine, sz);
-	//	if fullPathToCurEngine = nil then exit;
-	//	until GetModuleFileName(VersionAbstraction().GetEngineExeModuleAddress(), fullPathToCurEngine, sz) < sz - 1;
-	//cmdapp: = fullPathToCurEngine;
-	//workingdir: = mod_settings.root_dir;
-	//cmdline: = VersionAbstraction().GetEngineExeFileName() + ' ' + add_params + ' -fz_nomod -fzmod ' + mod_settings.modname + ' -wosace -start client(' + ip + '/port=' + inttostr(port) + playername + ')';
-	//	FreeMem(fullPathToCurEngine, sz);
-	//	end;
-
-		//Точка невозврата. Убедимся, что пользователь не отменил загрузку
-	if (VersionAbstraction()->CheckForUserCancelDownload())
-	{
-		Msg("! Cancelled by user");
-		return false;
-	}
-
-	Msg("cmdapp: %s", cmdapp.c_str());
-	Msg("cmdline: %s", cmdline.c_str());
-
-	STARTUPINFO si;
-	PROCESS_INFORMATION pi;
-	FillMemory(&si, sizeof(si), 0);
-	FillMemory(&pi, sizeof(pi), 0);
-	si.cb = sizeof(si);
-
-	//Прибьем блокирующий запуск нескольких копий сталкера мьютекс
-	KillMutex();
-
-	//Запустим клиента
-	if (!CreateProcess(cmdapp.c_str(), cmdline.data(), 0, 0, false, CREATE_SUSPENDED, 0, workingdir.c_str(), &si, &pi))
-	{
-		Msg("! Cannot run application");
-		return false;
-	}
-	else
-	{
-		ResumeThread(pi.hThread);
-		CloseHandle(pi.hProcess);
-		CloseHandle(pi.hThread);
-		return true;
-	}
+	BuildUserLtx(mod_settings);	
+	return Finalize(mod_settings);
 }
