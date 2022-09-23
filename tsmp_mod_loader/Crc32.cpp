@@ -1,6 +1,8 @@
 #include "Common.h"
 #include "FileManager.h"
 
+extern bool g_SkipFullFileCheck;
+
 namespace Implementation1
 {
     // взято из https://github.com/komrad36/CRC
@@ -696,7 +698,7 @@ bool GetFileChecks(string path, FZCheckParams& OutCheckParams, bool needMD5)
 
 	OutCheckParams.size = GetFileSize(fileHandle, nullptr);
 
-	if (!OutCheckParams.size)
+	if (!OutCheckParams.size || g_SkipFullFileCheck)
 	{
 		CloseHandle(fileHandle);
 		return true;

@@ -7,10 +7,18 @@
 // TODO: enable curl downloader?
 // TODO: implement md5 or remove it
 
+bool GetFileChecks(string path, FZCheckParams &OutCheckParams, bool needMD5);
+bool IsDummy(const FZCheckParams &c);
+FZCheckParams GetDummyChecks();
+bool CompareFiles(const FZCheckParams &c1, const FZCheckParams &c2);
+
+const char* FM_LBL = "[FM]";
+extern bool g_SkipFullFileCheck;
+
 // Создает папки по указанному пути
 bool ForceDirectories(const string &path)
 {
-	int res = SHCreateDirectoryEx(nullptr, path.c_str(), nullptr);	
+	int res = SHCreateDirectoryEx(nullptr, path.c_str(), nullptr);
 	return res == ERROR_ALREADY_EXISTS || res == ERROR_SUCCESS;
 }
 
@@ -18,13 +26,6 @@ bool _DeleteFile(string path)
 {
 	return !!DeleteFile(path.c_str());
 }
-
-bool GetFileChecks(string path, FZCheckParams &OutCheckParams, bool needMD5);
-bool IsDummy(const FZCheckParams &c);
-FZCheckParams GetDummyChecks();
-bool CompareFiles(const FZCheckParams &c1, const FZCheckParams &c2);
-
-const char* FM_LBL = "[FM]";
 
 FZCheckParams GetDummyChecks()
 {
@@ -44,7 +45,12 @@ bool IsDummy(const FZCheckParams &c)
 
 bool CompareFiles(const FZCheckParams &c1, const FZCheckParams &c2)
 {
-	return c1.crc32 == c2.crc32 && c1.size == c2.size; /* && c1.md5 == c2.md5 */;
+	bool res = c1.size == c2.size;
+
+	if (g_SkipFullFileCheck)
+		return res;
+
+	return res && c1.crc32 == c2.crc32;
 }
 
 bool FZFiles::_ScanDir(string dir_path)

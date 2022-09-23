@@ -27,10 +27,13 @@ extern string GetConfigsDir(const string &cmdline, const string &defVal);
 
 extern bool WinapiDownloadFile(const char* url, const char* path);
 extern void KillMutex();
-extern bool ForceDirectories(const string& path);
+extern bool ForceDirectories(const string &path);
+extern bool SkipFullFileCheck(const string &cmdline);
 
 extern std::string g_ModParams;
 using FZMasterLinkListAddr = vector<string>;
+
+bool g_SkipFullFileCheck = false;
 
 struct FZFsLtxBuilderSettings
 {
@@ -862,7 +865,7 @@ bool Finalize(const FZModSettings &settings)
 			cmdline = VersionAbstraction()->GetEngineExeFileName();
 		}
 
-		cmdline = cmdline + " -start client(" + ip + "/port=" + std::to_string(port) + playername + psw + ')';
+		cmdline = cmdline + " -fz_nomod -fzmod -start client(" + ip + "/port=" + std::to_string(port) + playername + psw + ')';
 		workingdir = settings.root_dir;
 	}
 
@@ -967,6 +970,8 @@ bool GetFileLists(FZFiles &files_cp, FZFiles& files, FZModSettings &mod_settings
 //Выполняется в отдельном потоке
 bool DoWork(string modName, string modPath) 
 {
+	g_SkipFullFileCheck = SkipFullFileCheck(g_ModParams);
+
 	//Пока идет коннект(существует уровень) - не начинаем работу
 	while (VersionAbstraction()->CheckForLevelExist())
 		Sleep(10);

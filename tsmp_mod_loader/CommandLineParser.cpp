@@ -102,7 +102,7 @@ string GetPassword(const string &cmdline)
     return ExtractArgString(pos, pswKey, modParams);
 }
 
-string GetServerIp(const const string &cmdline)
+string GetServerIp(const string &cmdline)
 {
     const char* SRV_IP = "-srv ";
     const char* SRV_DOMAIN= "-srvname ";
@@ -188,4 +188,9 @@ bool IsMirrorsDisabled(const string &cmdline)
 bool IsFullInstallMode(const string &cmdline)
 {
     return Find(" -fullinstall ", ' ' + cmdline + ' ');
+}
+
+bool SkipFullFileCheck(const string &cmdline)
+{
+    return Find(" -skipfullcheck ", ' ' + cmdline + ' ');
 }
