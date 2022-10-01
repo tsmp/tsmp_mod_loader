@@ -681,7 +681,7 @@ namespace Implementation2
     }
 }
 
-bool GetFileChecks(string path, FZCheckParams& OutCheckParams, bool needMD5)
+bool GetFileChecks(const string &path, FZCheckParams& OutCheckParams, bool needMD5)
 {
 	Msg("Calculating checks for %s", path.c_str());
 

@@ -80,7 +80,7 @@ string BoolToStr(bool b)
 	return b ? "true" : "false";
 }
 
-bool FileExists(string path)
+bool FileExists(const string &path)
 {
 	return PathFileExists(path.c_str());
 }
@@ -129,23 +129,26 @@ FZMasterListApproveType DownloadAndParseMasterModsList(FZModSettings &settings, 
 
 	FZMasterListApproveType result = FZ_MASTERLIST_NOT_APPROVED;
 
-	FZMasterLinkListAddr master_links;
-	master_links.push_back("http://stalker-life.com/stalker_files/mods_shoc/tsmp3/ModMasterLinks.txt");
-	master_links.push_back("https://raw.githubusercontent.com/FreeZoneMods/modmasterlinks/master/links.ini"); // TODO: решить вопрос с https
-	master_links.push_back("http://www.gwrmod.tk/files/mods_links.ini");
-	master_links.push_back("http://www.stalker-life.ru/mods_links/links.ini");
-	master_links.push_back("http://stalker.stagila.ru:8080/stcs_emergency/mods_links.ini");
-	master_links.push_back("http://www.gwrmod.tk/files/mods_links_low_priority.ini");
+	std::string masterLinks[]
+	{
+		"http://stalker-life.com/stalker_files/mods_shoc/tsmp3/ModMasterLinks.txt",
+		"https://raw.githubusercontent.com/FreeZoneMods/modmasterlinks/master/links.ini", // TODO: решить вопрос с https
+		"http://www.gwrmod.tk/files/mods_links.ini",
+		"http://www.stalker-life.ru/mods_links/links.ini",
+		"http://stalker.stagila.ru:8080/stcs_emergency/mods_links.ini",
+		"http://www.gwrmod.tk/files/mods_links_low_priority.ini"
+	};
 
 	bool list_downloaded = false;
 	string full_path = settings.root_dir + master_mods_list_name;
-	FZDownloaderThread* dlThread = CreateDownloaderThreadForUrl(master_links[0]);
+	FZDownloaderThread* dlThread = CreateDownloaderThreadForUrl(masterLinks[0]);
 
-	for (u32 i = 0; i < master_links.size(); i++)
+	for (std::string &masterLink: masterLinks)
 	{
-		FZFileDownloader* dl = dlThread->CreateDownloader(master_links[i], full_path, 0);
+		FZFileDownloader* dl = dlThread->CreateDownloader(masterLink, full_path, 0);
 		list_downloaded = dl->StartSyncDownload();
 		delete dl;
+
 		if (list_downloaded)
 			break;
 	}
@@ -346,7 +349,7 @@ FZMasterListApproveType DownloadAndParseMasterModsList(FZModSettings &settings, 
 	return result;
 }
 
-bool DownloadAndApplyFileList(string url, string list_filename, string root_dir, FZMasterListApproveType masterlinks_type, FZFiles &fileList, bool update_progress)
+bool DownloadAndApplyFileList(const string &url, const string &list_filename, const string &root_dir, FZMasterListApproveType masterlinks_type, FZFiles &fileList, bool update_progress)
 {	
 	const u32 MAX_NO_UPDATE_DELTA = 1000;
 	string filepath = root_dir + list_filename;
@@ -473,7 +476,7 @@ bool DownloadAndApplyFileList(string url, string list_filename, string root_dir,
 	return true;
 }
 
-bool DownloadCallback(FZFileActualizingProgressInfo info, void* userdata)
+bool DownloadCallback(const FZFileActualizingProgressInfo &info, void* userdata)
 {
 	float progress = 0;
 
@@ -481,7 +484,7 @@ bool DownloadCallback(FZFileActualizingProgressInfo info, void* userdata)
 	{
 		long long ready = info.total_downloaded + info.total_up_to_date_size;
 
-		if (ready > 0 || ready <= info.total_mod_size)
+		if (ready > 0)
 			progress = (static_cast<float>(ready) / info.total_mod_size) * 100;
 	}
 
@@ -508,7 +511,7 @@ bool DownloadCallback(FZFileActualizingProgressInfo info, void* userdata)
 	return !VersionAbstraction()->CheckForUserCancelDownload();
 }
 
-bool BuildFsGame(string filename, FZFsLtxBuilderSettings settings)
+bool BuildFsGame(const string &filename, const FZFsLtxBuilderSettings &settings)
 {
 	std::ofstream f;
 	f.open(filename);
@@ -591,7 +594,7 @@ bool BuildFsGame(string filename, FZFsLtxBuilderSettings settings)
 	return true;
 }
 
-bool CopyFileIfValid(string src_path, string dst_path, FZCheckParams targetParams)
+bool CopyFileIfValid(const string &src_path, const string &dst_path, const FZCheckParams &targetParams)
 {
 	FZCheckParams fileCheckParams;
 
@@ -621,7 +624,7 @@ bool CopyFileIfValid(string src_path, string dst_path, FZCheckParams targetParam
 	return true;
 }
 
-void PreprocessFiles(FZFiles &files, string mod_root)
+void PreprocessFiles(FZFiles &files, const string &mod_root)
 {
 	const char* NO_PRELOAD = "-fz_nopreload";
 
@@ -630,25 +633,29 @@ void PreprocessFiles(FZFiles &files, string mod_root)
 
 	files.AddIgnoredFile(gamedata_files_list_name);
 	files.AddIgnoredFile(engine_files_list_name);
+	u32 userdataDirStrLen = strlen(userdata_dir_name);
+	u32 engineDirStrLen = strlen(engine_dir_name);
+	u32 patchesDirStrLen = strlen(patches_dir_name);
+	u32 mpDirStrLen = strlen(mp_dir_name);
 
 	for (int i = files.EntriesCount() - 1; i >= 0; i--)
 	{
 		string filename, src, dst;
 		pFZFileItemData e = files.GetEntry(i);
 
-		if (!strncmp(e->name.c_str(), userdata_dir_name, strlen(userdata_dir_name)) && e->required_action == FZ_FILE_ACTION_UNDEFINED)
+		if (!strncmp(e->name.c_str(), userdata_dir_name, userdataDirStrLen) && e->required_action == FZ_FILE_ACTION_UNDEFINED)
 		{
 			//спасаем файлы юзердаты от удаления
 			files.UpdateEntryAction(i, FZ_FILE_ACTION_IGNORE);
 		}
-		else if (!strncmp(e->name.c_str(), engine_dir_name, strlen(engine_dir_name)) && e->required_action == FZ_FILE_ACTION_DOWNLOAD)
+		else if (!strncmp(e->name.c_str(), engine_dir_name, engineDirStrLen) && e->required_action == FZ_FILE_ACTION_DOWNLOAD)
 		{
 			if (!disable_preload)
 			{
 				//Проверим, есть ли уже такой файл в текущем движке
 				string core_root = VersionAbstraction()->GetCoreApplicationPath();
 				filename = e->name;
-				filename.erase(0, strlen(engine_dir_name));
+				filename.erase(0, engineDirStrLen);
 				src = core_root + filename;
 				dst = mod_root + e->name;
 
@@ -656,13 +663,13 @@ void PreprocessFiles(FZFiles &files, string mod_root)
 					files.UpdateEntryAction(i, FZ_FILE_ACTION_NO);
 			}
 		}
-		else if (!strncmp(e->name.c_str(), patches_dir_name, strlen(patches_dir_name)) && e->required_action == FZ_FILE_ACTION_DOWNLOAD)
+		else if (!strncmp(e->name.c_str(), patches_dir_name, patchesDirStrLen) && e->required_action == FZ_FILE_ACTION_DOWNLOAD)
 		{
 			if (!disable_preload && VersionAbstraction()->PathExists("$arch_dir_patches$"))
 			{
 				//Проверим, есть ли уже такой файл в текущей копии игры
 				filename = e->name;
-				filename.erase(0, strlen(patches_dir_name));
+				filename.erase(0, patchesDirStrLen);
 				src = VersionAbstraction()->UpdatePath("$arch_dir_patches$", filename);
 				dst = mod_root + e->name;
 
@@ -670,13 +677,13 @@ void PreprocessFiles(FZFiles &files, string mod_root)
 					files.UpdateEntryAction(i, FZ_FILE_ACTION_NO);
 			}
 		}
-		else if (!strncmp(e->name.c_str(), mp_dir_name, strlen(mp_dir_name)) && e->required_action == FZ_FILE_ACTION_DOWNLOAD)
+		else if (!strncmp(e->name.c_str(), mp_dir_name, mpDirStrLen) && e->required_action == FZ_FILE_ACTION_DOWNLOAD)
 		{
 			if (!disable_preload && VersionAbstraction()->PathExists("$game_arch_mp$"))
 			{
 				//Проверим, есть ли уже такой файл в текущей копии игры
 				filename = e->name;
-				filename.erase(0, strlen(mp_dir_name));
+				filename.erase(0, mpDirStrLen);
 				src = VersionAbstraction()->UpdatePath("$game_arch_mp$", filename);
 				dst = mod_root + e->name;
 
@@ -687,7 +694,7 @@ void PreprocessFiles(FZFiles &files, string mod_root)
 	}
 }
 
-FZConfigBackup CreateConfigBackup(string filename)
+FZConfigBackup CreateConfigBackup(const string &filename)
 {
 	const u32 MAX_LEN = 1 * 1024 * 1024;
 
@@ -742,7 +749,7 @@ FZConfigBackup CreateConfigBackup(string filename)
 	return result;
 }
 
-bool FreeConfigBackup(FZConfigBackup backup, bool need_restore)
+bool FreeConfigBackup(const FZConfigBackup &backup, bool need_restore)
 {
 	if (!need_restore)
 		return false;
@@ -968,7 +975,7 @@ bool GetFileLists(FZFiles &files_cp, FZFiles& files, FZModSettings &mod_settings
 }
 
 //Выполняется в отдельном потоке
-bool DoWork(string modName, string modPath) 
+bool DoWork(const string &modName, const string &modPath) 
 {
 	g_SkipFullFileCheck = SkipFullFileCheck(g_ModParams);
 
@@ -1000,7 +1007,7 @@ bool DoWork(string modName, string modPath)
 	mod_settings.modname = modName;
 	mod_settings.root_dir = VersionAbstraction()->UpdatePath("$app_data_root$", modPath);
 
-	if (mod_settings.root_dir[mod_settings.root_dir.size() - 1] != '\\' && mod_settings.root_dir[mod_settings.root_dir.size() - 1] != '//')
+	if (mod_settings.root_dir[mod_settings.root_dir.size() - 1] != '\\' && mod_settings.root_dir[mod_settings.root_dir.size() - 1] != '/')
 		mod_settings.root_dir += '\\';
 
 	Msg("- Path to mod is %s", mod_settings.root_dir.c_str());

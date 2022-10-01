@@ -11,7 +11,7 @@ enum FZDownloadResult
 class FZFileDownloader
 {
 public:
-	FZFileDownloader(string url, string filename, u32 compression_type, FZDownloaderThread* thread);
+	FZFileDownloader(const string &url, const string &filename, u32 compression_type, FZDownloaderThread* thread);
 	virtual ~FZFileDownloader();
 
 	virtual bool IsDownloading() = 0;
@@ -117,7 +117,7 @@ public:
 	virtual ~FZDownloaderThread();
 
 	bool AddCommand(FZDownloaderThreadCmd* cmd);
-	virtual FZFileDownloader* CreateDownloader(string url, string filename, u32 compression_type) = 0;
+	virtual FZFileDownloader* CreateDownloader(const string &url, const string &filename, u32 compression_type) = 0;
 
 	virtual bool StartDownload(FZFileDownloader* dl) = 0;
 	virtual bool ProcessDownloads() = 0;
@@ -166,7 +166,7 @@ public:
 	FZGameSpyDownloaderThread();
 	virtual ~FZGameSpyDownloaderThread();
 
-	FZFileDownloader* CreateDownloader(string url, string filename, u32 compression_type) override;
+	FZFileDownloader* CreateDownloader(const string &url, const string &filename, u32 compression_type) override;
 	bool StartDownload(FZFileDownloader* dl) override;
 	bool ProcessDownloads() override;
 	bool CancelDownload(FZFileDownloader* dl) override;

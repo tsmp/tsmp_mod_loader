@@ -2,9 +2,9 @@
 #include "IniFile.h"
 
 extern string trim(const string &s);
-extern void uniassert(bool cond, string descr);
+extern void uniassert(bool cond, const string &descr);
 
-bool TryHexToInt(string hexString, u32& outVal)
+bool TryHexToInt(const string &hexString, u32& outVal)
 {
 	return sscanf_s(hexString.c_str(), "%x", &outVal);
 }
@@ -30,9 +30,8 @@ bool GetNextParam(string & data, string & buf, char separator)
 	return true;
 }
 
-FZIniFile::FZIniFile(string filename)
+FZIniFile::FZIniFile(string &filename): _filename(std::move(filename))
 {
-	_filename = filename;
 	u32 bufferSize = 128;
 
 	string buffer;
@@ -57,9 +56,7 @@ FZIniFile::FZIniFile(string filename)
 	}
 }
 
-FZIniFile::~FZIniFile() {}
-
-int FZIniFile::GetIntDef(string section, string key, int def)
+int FZIniFile::GetIntDef(const string &section, const string &key, int def)
 {
 	string val;
 
@@ -69,7 +66,7 @@ int FZIniFile::GetIntDef(string section, string key, int def)
 	return std::stoi(val.c_str());
 }
 
-string FZIniFile::GetStringDef(string section, string key, string def)
+string FZIniFile::GetStringDef(const string &section, const string &key, const string &def)
 {
 	string val;
 
@@ -79,7 +76,7 @@ string FZIniFile::GetStringDef(string section, string key, string def)
 	return val;
 }
 
-bool FZIniFile::GetHex(string section, string key, u32 &val)
+bool FZIniFile::GetHex(const string &section, const string &key, u32 &val)
 {
 	string str;
 	u32 outval = 0;
@@ -94,7 +91,7 @@ bool FZIniFile::GetHex(string section, string key, u32 &val)
 	return true;
 }
 
-bool FZIniFile::GetBoolDef(string section, string key, bool def)
+bool FZIniFile::GetBoolDef(const string &section, const string &key, bool def)
 {
 	string val;
 
@@ -121,7 +118,7 @@ string FZIniFile::GetSectionName(int i)
 	return _sections[i];
 }
 
-bool FZIniFile::_GetData(string section, string key, string& value)
+bool FZIniFile::_GetData(const string &section, const string &key, string &value)
 {
 	u32 res = 0;
 	u32 bufferSize = 128;
@@ -144,5 +141,5 @@ bool FZIniFile::_GetData(string section, string key, string& value)
 	buffer += ';';
 	GetNextParam(buffer, value, ';');
 	value = trim(value);
-	return res > 0;
+	return !!res;
 }

@@ -7,7 +7,7 @@
 // TODO: enable curl downloader?
 // TODO: implement md5 or remove it
 
-bool GetFileChecks(string path, FZCheckParams &OutCheckParams, bool needMD5);
+bool GetFileChecks(const string &path, FZCheckParams &OutCheckParams, bool needMD5);
 bool IsDummy(const FZCheckParams &c);
 FZCheckParams GetDummyChecks();
 bool CompareFiles(const FZCheckParams &c1, const FZCheckParams &c2);
@@ -22,7 +22,7 @@ bool ForceDirectories(const string &path)
 	return res == ERROR_ALREADY_EXISTS || res == ERROR_SUCCESS;
 }
 
-bool _DeleteFile(string path)
+bool _DeleteFile(const string &path)
 {
 	return !!DeleteFile(path.c_str());
 }
@@ -53,7 +53,7 @@ bool CompareFiles(const FZCheckParams &c1, const FZCheckParams &c2)
 	return res && c1.crc32 == c2.crc32;
 }
 
-bool FZFiles::_ScanDir(string dir_path)
+bool FZFiles::_ScanDir(const string &dir_path)
 {
 	string name = _parent_path + dir_path + "*.*";
 
@@ -90,7 +90,7 @@ inline std::string trim(const std::string& s)
 	return (wsback <= wsfront ? std::string() : std::string(wsfront, wsback));
 }
 
-pFZFileItemData FZFiles::_CreateFileData(string name, string url, u32 compression, FZCheckParams need_checks)
+pFZFileItemData FZFiles::_CreateFileData(const string &name, const string &url, u32 compression, const FZCheckParams &need_checks)
 {
 	pFZFileItemData result = new FZFileItemData();
 
@@ -146,7 +146,7 @@ bool FZFiles::ScanPath(string dir_path)
 	Clear();
 	Msg("- %s =======Scanning directory=======", FM_LBL);
 
-	if (dir_path[dir_path.size() - 1] != '\\' && dir_path[dir_path.size() - 1] != '//')
+	if (dir_path[dir_path.size() - 1] != '\\' && dir_path[dir_path.size() - 1] != '/')
 		dir_path += '\\';
 
 	_parent_path = dir_path;
@@ -155,7 +155,7 @@ bool FZFiles::ScanPath(string dir_path)
 	return true;
 }
 
-bool FZFiles::UpdateFileInfo(string filename, string url, u32 compression_type, FZCheckParams targetParams)
+bool FZFiles::UpdateFileInfo(string filename, const string &url, u32 compression_type, const FZCheckParams &targetParams)
 {
 	Msg("- %s Updating file info for %s, size = %u, crc = %#08x, url = %s, compression %u",
 		FM_LBL, filename.c_str(), targetParams.size, targetParams.crc32, /* md5=[' + targetParams.md5 + ']' */  url.c_str(), compression_type);
@@ -284,7 +284,7 @@ bool FZFiles::ActualizeFiles()
 			total_dl_size = total_dl_size + filedata->target.size;
 			string str = _parent_path + filedata->name;
 
-			while (str[str.size() - 1] != '\\' && str[str.size() - 1] != '//')
+			while (str[str.size() - 1] != '\\' && str[str.size() - 1] != '/')
 				str.resize(str.size() - 1);
 
 			if (!ForceDirectories(str))
@@ -342,7 +342,6 @@ bool FZFiles::ActualizeFiles()
 		downloaders.push_back(nullptr);
 
 	bool finished = false;
-	downloaded_total = 0;
 	cb_info.status = FZ_ACTUALIZING_IN_PROGRESS;
 
 	while (!finished)
@@ -400,8 +399,7 @@ bool FZFiles::ActualizeFiles()
 				downloaded_total = downloaded_total + downloaders[i]->DownloadedBytes();
 
 				if (!result)
-					Msg("! %s Download failed for %s", FM_LBL, downloaders[i]->GetFilename());;
-
+					Msg("! %s Download failed for %s", FM_LBL, downloaders[i]->GetFilename().c_str());;
 
 				delete downloaders[i];
 				downloaders[i] = nullptr;
@@ -413,6 +411,7 @@ bool FZFiles::ActualizeFiles()
 
 		//Вызовем колбэк прогресса
 		cb_info.total_downloaded = downloaded_now + downloaded_total;
+
 		if (_callback)
 			result = _callback(cb_info, _cb_userdata);
 
@@ -510,7 +509,7 @@ bool FZFiles::ActualizeFiles()
 	return result;
 }
 
-bool FZFiles::AddIgnoredFile(string filename)
+bool FZFiles::AddIgnoredFile(const string &filename)
 {
 	//Пробуем найти файл среди существующих
 	pFZFileItemData filedata = nullptr;

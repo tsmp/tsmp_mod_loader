@@ -5,7 +5,7 @@
 
 // TODO: implement curl downloader
 
-extern u32 DecompressFile(string filename, u32 t);
+extern u32 DecompressFile(const string &filename, u32 compressionType);
 
 //class FZCurlDownloaderThread : public FZDownloaderThread
 //{
@@ -467,7 +467,7 @@ u32 __cdecl OnGamespyDownloadFinished(u32 request, u32 requestResult, char* buff
 	return 1;
 }
 
-FZFileDownloader* FZGameSpyDownloaderThread::CreateDownloader(string url, string filename, u32 compression_type)
+FZFileDownloader* FZGameSpyDownloaderThread::CreateDownloader(const string &url, const string &filename, u32 compression_type)
 {
 	return new FZGameSpyFileDownloader(url, filename, compression_type, this);
 }
@@ -599,10 +599,11 @@ FZDownloaderThreadCmd* FZDownloaderThreadInfoQueue::Get(int i)
 	return _queue[i];
 }
 
-FZFileDownloader::FZFileDownloader(string url, string filename, u32 compression_type, FZDownloaderThread* thread)
+FZFileDownloader::FZFileDownloader(const string &url, const string &filename, u32 compression_type, FZDownloaderThread* thread)
 {
 	_url = url;
 	_filename = filename;
+	_filesize = 0;
 	_compression_type = compression_type;
 	_downloaded_bytes = 0;
 	_status = DOWNLOAD_SUCCESS;

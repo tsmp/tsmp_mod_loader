@@ -76,28 +76,28 @@ protected:
 	void* FunFromVTable(void* obj, u32 index);
 	void* DoEcxCall_noarg(void* fun, void* obj);
 
-	void* DoEcxCall_1arg(void* fun, void* obj, void* arg);
-	void* DoEcxCall_2arg(void* fun, void* obj, void* arg1, void* arg2);
-	void* DoEcxCall_3arg(void* fun, void* obj, void* arg1, void* arg2, void* arg3);
+	void* DoEcxCall_1arg(void* fun, void* obj, const void* arg);
+	void* DoEcxCall_2arg(void* fun, void* obj, const void* arg1, const void* arg2);
+	void* DoEcxCall_3arg(void* fun, void* obj, const void* arg1, const void* arg2, const void* arg3);
 
 	void* GetLevel();
 
 public:
 	FZBaseGameVersion();
-	~FZBaseGameVersion();
+	virtual ~FZBaseGameVersion() = default;
 
 	string GetCoreParams() override;
 	string GetCoreApplicationPath() override;
-	void ExecuteConsoleCommand(string cmd) override;
+	void ExecuteConsoleCommand(const string &cmd) override;
 
 	string GetEngineExeFileName() override;
 	void* GetEngineExeModuleAddress() override;
 
-	string UpdatePath(string root, string appendix) override;
-	bool PathExists(string root) override;
+	string UpdatePath(const string &root, const string &appendix) override;
+	bool PathExists(const string &root) override;
 	bool CheckForLevelExist() override;
 	string GetPlayerName() override;
-	void Log(string txt) override;
+	void Log(const string &txt) override;
 };
 
 
@@ -127,7 +127,7 @@ class FZCommonGameVersion : public FZBaseGameVersion
 protected:
 	u32 _g_ppGamePersistent;	
 	u32 _pDevice;
-	u32 _g_pbRendering;
+	volatile int *m_pG_pbRendering;
 
 	void* xrCriticalSection__Enter;
 	void* xrCriticalSection__Leave;
@@ -141,7 +141,7 @@ protected:
 	void SafeExec_start();
 	void SafeExec_end();
 
-	void assign_string(u32 pshared_str, string text);
+	void assign_string(u32 pshared_str, const string &text);
 
 	u32 GetMainMenu();
 	virtual void ActivateMainMenu(bool state);
@@ -192,7 +192,7 @@ public:
 	FZCommonGameVersion();
 
 	void ShowMpMainMenu() override;
-	void AssignStatus(string str) override;
+	void AssignStatus(const string &str) override;
 
 	bool CheckForUserCancelDownload() override;
 
@@ -201,7 +201,7 @@ public:
 
 	void SetVisualProgress(float progress) override;
 
-	bool ThreadSpawn(void* proc, void* args, string name = "", u32 stack = 0) override;
+	bool ThreadSpawn(void* proc, void* args, const string &name = "", u32 stack = 0) override;
 	void AbortConnection() override;
 
 	bool IsServerListUpdateActive() override;
@@ -281,7 +281,7 @@ u32 AtomicExchange(u32* addr, u32 val)
 	return InterlockedExchange(addr, val); // TODO: check
 }
 
-void uniassert(bool cond, string descr)
+void uniassert(bool cond, const string &descr)
 {
 	if (cond)
 		return;
@@ -350,8 +350,6 @@ FZBaseGameVersion::FZBaseGameVersion()
 	end;*/
 }
 
-FZBaseGameVersion::~FZBaseGameVersion() {}
-
 void* FZBaseGameVersion::FunFromVTable(void* obj, u32 index)
 {
 	index *= sizeof(void*);
@@ -387,7 +385,7 @@ void* FZBaseGameVersion::DoEcxCall_noarg(void* fun, void* obj)
 	return result;
 }
 
-void* FZBaseGameVersion::DoEcxCall_1arg(void* fun, void* obj, void* arg)
+void* FZBaseGameVersion::DoEcxCall_1arg(void* fun, void* obj, const void* arg)
 {
 	void* result;
 
@@ -404,7 +402,7 @@ void* FZBaseGameVersion::DoEcxCall_1arg(void* fun, void* obj, void* arg)
 	return result;
 }
 
-void* FZBaseGameVersion::DoEcxCall_2arg(void* fun, void* obj, void* arg1, void* arg2)
+void* FZBaseGameVersion::DoEcxCall_2arg(void* fun, void* obj, const void* arg1, const void* arg2)
 {
 	void* result;
 
@@ -420,7 +418,7 @@ void* FZBaseGameVersion::DoEcxCall_2arg(void* fun, void* obj, void* arg1, void* 
 	}
 }
 
-void* FZBaseGameVersion::DoEcxCall_3arg(void* fun, void* obj, void* arg1, void* arg2, void* arg3)
+void* FZBaseGameVersion::DoEcxCall_3arg(void* fun, void* obj, const void* arg1, const void* arg2, const void* arg3)
 {
 	void* result;
 
@@ -452,7 +450,7 @@ string FZBaseGameVersion::GetCoreApplicationPath()
 	return _core->ApplicationPath;
 }
 
-void FZBaseGameVersion::ExecuteConsoleCommand(string cmd)
+void FZBaseGameVersion::ExecuteConsoleCommand(const string &cmd)
 {
 	DoEcxCall_1arg(CConsole__Execute, reinterpret_cast<void*>(*_g_ppConsole), cmd.data());
 }
@@ -467,14 +465,14 @@ void* FZBaseGameVersion::GetEngineExeModuleAddress()
 	return _exe_module_address;
 }
 
-string FZBaseGameVersion::UpdatePath(string root, string appendix)
+string FZBaseGameVersion::UpdatePath(const string &root, const string &appendix)
 {
 	string_path path{ '\0' };
 	DoEcxCall_3arg(CLocatorApi__update_path, reinterpret_cast<void*>(*_xr_FS), path, root.data(), appendix.data());
 	return path;
 }
 
-bool FZBaseGameVersion::PathExists(string root)
+bool FZBaseGameVersion::PathExists(const string &root)
 {
 	return DoEcxCall_1arg(CLocatorApi__path_exists, reinterpret_cast<void*>(*_xr_FS), root.data());
 }
@@ -484,7 +482,7 @@ bool FZBaseGameVersion::CheckForLevelExist()
 	return GetLevel();
 }
 
-void FZBaseGameVersion::Log(string txt)
+void FZBaseGameVersion::Log(const string &txt)
 {
 	//var
 	//	f : textfile;
@@ -588,8 +586,8 @@ FZCommonGameVersion::FZCommonGameVersion()
 	_pDevice = reinterpret_cast<u32>(GetProcAddress(_exe_module_address, "?Device@@3VCRenderDevice@@A"));
 	uniassert(_pDevice, "Device is 0");
 
-	_g_pbRendering = reinterpret_cast<u32>(GetProcAddress(_exe_module_address, "?g_bRendering@@3HA"));
-	uniassert(_g_pbRendering, "bRendering is 0");
+	m_pG_pbRendering = reinterpret_cast<int*>(GetProcAddress(_exe_module_address, "?g_bRendering@@3HA"));
+	uniassert(m_pG_pbRendering, "bRendering is 0");
 
 	xrCriticalSection__Enter = GetProcAddress(_xrCore_module_address, "?Enter@xrCriticalSection@@QAEXXZ");
 	uniassert(xrCriticalSection__Enter, "xrCriticalSection::Enter is 0");
@@ -608,7 +606,7 @@ FZCommonGameVersion::FZCommonGameVersion()
 // НЕ ТРОГАТЬ! ОПАСНО ДЛЯ ЖИЗНИ!
 void FZCommonGameVersion::SafeExec_start()
 {
-	bool* mt_bMustExit = reinterpret_cast<bool*>(_pDevice + get_CRenderDevice__mt_bMustExit_offset());
+	volatile bool* mt_bMustExit = reinterpret_cast<bool*>(_pDevice + get_CRenderDevice__mt_bMustExit_offset());
 	void* mt_csEnter = reinterpret_cast<void*>(_pDevice + get_CRenderDevice__mt_csEnter_offset());
 	u32* b_is_Active = reinterpret_cast<u32*>(_pDevice + get_CRenderDevice__b_is_Active_offset());
 
@@ -631,7 +629,7 @@ void FZCommonGameVersion::SafeExec_start()
 
 	// CRenderDevice::b_is_Active, будучи выставлен в false, предотвратит начало рендеринга
 	// Но если рендеринг начался до того, как мы выставили флаг, нам надо подождать его конца
-	while (*reinterpret_cast<bool*>(_g_pbRendering))
+	while (*m_pG_pbRendering)
 		Sleep(1);
 
 	AtomicExchange(b_is_Active, old_active_status);
@@ -650,7 +648,7 @@ void FZCommonGameVersion::SafeExec_end()
 	//Более того, вторичный поток еще может успеть захватить mt_csEnter ;)
 }
 
-void FZCommonGameVersion::assign_string(u32 pshared_str, string text)
+void FZCommonGameVersion::assign_string(u32 pshared_str, const string &text)
 {
 	uniassert(pshared_str, "pshared_str is nil, cannot assign");
 	void* pnewvalue = DoEcxCall_1arg(str_container__dock, *reinterpret_cast<void**>(_g_ppStringContainer), text.data());
@@ -770,7 +768,7 @@ void FZCommonGameVersion::ShowMpMainMenu()
 	SafeExec_end();
 }
 
-void FZCommonGameVersion::AssignStatus(string str)
+void FZCommonGameVersion::AssignStatus(const string &str)
 {
 	u32 mm = GetMainMenu();
 	SafeExec_start();
@@ -839,7 +837,7 @@ void FZCommonGameVersion::SetVisualProgress(float progress)
 	*reinterpret_cast<float*>(GetMainMenu() + get_CMainMenu__m_sPDProgress__Progress_offset()) = progress;
 }
 
-bool FZCommonGameVersion::ThreadSpawn(void* proc, void* args, string name, u32 stack)
+bool FZCommonGameVersion::ThreadSpawn(void* proc, void* args, const string &name, u32 stack)
 {
 	thread_spawn(proc, name.data(), stack, args);
 	return true;

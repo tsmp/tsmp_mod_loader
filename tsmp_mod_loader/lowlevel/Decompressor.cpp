@@ -94,7 +94,7 @@
 
 std::mutex DecompressLock;
 
-u32 DecompressCabFile(string filename)
+u32 DecompressCabFile(const string &filename)
 {
 	string tmpname;
 	string cmd;
@@ -183,12 +183,11 @@ u32 DecompressCabFile(string filename)
 	return result;
 }
 
-u32 DecompressFile(string filename, u32 compressionType)
+u32 DecompressFile(const string &filename, u32 compressionType)
 {
 	switch (compressionType)
 	{
 	case 0:
-
 	{
 		HANDLE file_handle = CreateFile(filename.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
 		u32 result = 0;

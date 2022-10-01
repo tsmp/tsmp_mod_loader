@@ -12,7 +12,7 @@ enum class FZDllModFunResult : u32
 	FZ_DLL_MOD_FUN_FAILURE = 2			//Ошибка загрузки мода
 };
 
-extern bool DoWork(string modName, string modPath);
+extern bool DoWork(const string &modName, const string &modPath);
 
 HINSTANCE g_hDll;
 HANDLE g_hFzLoaderSemaphore;

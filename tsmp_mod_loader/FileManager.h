@@ -20,7 +20,7 @@ struct FZFileActualizingProgressInfo
 	long long total_downloaded;
 };
 
-typedef bool (*FZFileActualizingCallback)(FZFileActualizingProgressInfo info, void* userdata); //return false if need to stop downloading
+typedef bool (*FZFileActualizingCallback)(const FZFileActualizingProgressInfo &info, void* userdata); //return false if need to stop downloading
 
 enum FZFileItemAction
 {
@@ -67,8 +67,8 @@ protected:
 
 	FZDlMode _mode;
 
-	bool _ScanDir(string dir_path);                                                                 //сканирует поддиректорию
-	pFZFileItemData _CreateFileData(string name, string url, u32 compression, FZCheckParams need_checks); //создает новую запись о файле и добавляет в список
+	bool _ScanDir(const string &dir_path);                                                                 //сканирует поддиректорию
+	pFZFileItemData _CreateFileData(const string &name, const string &url, u32 compression, const FZCheckParams &need_checks); //создает новую запись о файле и добавляет в список
 
 public:
 	FZFiles();
@@ -77,10 +77,10 @@ public:
 	void Clear();                                                                                          //полная очистка данных списка
 	void Dump(/*FZLogMessageSeverity  severity : = FZ_LOG_INFO*/);                                                  //вывод текущего состояния списка, отладочная опция
 	bool ScanPath(string dir_path);                                                                 //построение списка файлов в указанной директории и ее поддиректориях для последующей актуализации
-	bool UpdateFileInfo(string filename, string url, u32 compression_type, FZCheckParams targetParams);      //обновить сведения о целевых параметрах файла
+	bool UpdateFileInfo(string filename, const string &url, u32 compression_type, const FZCheckParams &targetParams);      //обновить сведения о целевых параметрах файла
 	bool ActualizeFiles();                                                                          //актуализировать игровые данные
 	void SortBySize();                                                                                     //отсортировать (по размеру) для оптимизации скорости скачивания
-	bool AddIgnoredFile(string filename);                                                           //добавить игнорируемый файл; вызывать после того, как все UpdateFileInfo выполнены
+	bool AddIgnoredFile(const string &filename);                                                           //добавить игнорируемый файл; вызывать после того, как все UpdateFileInfo выполнены
 	void SetCallback(FZFileActualizingCallback cb, void* userdata);                                      //добавить колбэк на обновление состояния синхронизации
 
 	int EntriesCount();                                                                            //число записей о синхронизируемых файлах
@@ -92,5 +92,5 @@ public:
 	void Copy(const FZFiles &from);
 };
 
-bool GetFileChecks(string path, FZCheckParams &OutCheckParams, bool needMD5);
+bool GetFileChecks(const string &path, FZCheckParams &OutCheckParams, bool needMD5);
 bool CompareFiles(const FZCheckParams &c1, const FZCheckParams &c2);
