@@ -140,7 +140,7 @@ FZMasterListApproveType DownloadAndParseMasterModsList(FZModSettings &settings, 
 
 	delete dlThread;
 
-	// TODO: fix
+	// TODO: fix or remove
 	//for (u32 i = 0; i < master_links.size(); i++)
 	//{
 	//	list_downloaded = WinapiDownloadFile(master_links[i].c_str(), full_path.c_str());
@@ -496,7 +496,7 @@ bool DownloadCallback(const FZFileActualizingProgressInfo &info, void* userdata)
 	return !VersionAbstraction()->CheckForUserCancelDownload();
 }
 
-bool BuildFsGame(const string &filename, const FZFsLtxBuilderSettings &settings)
+bool BuildFsGameInternal(const string &filename, const FZFsLtxBuilderSettings &settings)
 {
 	std::ofstream f;
 	f.open(filename);
@@ -576,6 +576,21 @@ bool BuildFsGame(const string &filename, const FZFsLtxBuilderSettings &settings)
 	f << "$game_saves$=true|false|$app_data_root$|savedgames\\" << endl;
 	f << "$mod_dir$=false|false|$fs_root$|mods\\" << endl;
 	f << "$downloads$=false|false|$app_data_root$" << endl;
+	return true;
+}
+
+bool BuildFsGame(const string& filename, const FZFsLtxBuilderSettings& settings)
+{
+	VersionAbstraction()->AssignStatus("Building fsltx...");
+	Msg("Building fsltx");
+	VersionAbstraction()->SetVisualProgress(100);
+
+	if (!BuildFsGameInternal(filename, settings))
+	{
+		Msg("! Building fsltx failed!");
+		return false;
+	}
+
 	return true;
 }
 
@@ -803,7 +818,7 @@ void ShowMessageBox()
 	VersionAbstraction()->TriggerMessage();
 }
 
-bool Finalize(const FZModSettings &settings)
+bool RunClient(const FZModSettings &settings)
 {
 	//Надо стартовать игру с модом
 	VersionAbstraction()->AssignStatus("Running game...");
@@ -954,11 +969,8 @@ bool GetFileLists(FZFiles &files_cp, FZFiles& files, FZModSettings &mod_settings
 	return flag;
 }
 
-//Выполняется в отдельном потоке
-bool DoWork(const string &modName, const string &modPath) 
+bool PrepareGUI()
 {
-	g_SkipFullFileCheck = SkipFullFileCheck(g_ModParams);
-
 	//Пока идет коннект(существует уровень) - не начинаем работу
 	while (VersionAbstraction()->CheckForLevelExist())
 		Sleep(10);
@@ -981,10 +993,15 @@ bool DoWork(const string &modName, const string &modPath)
 	VersionAbstraction()->ResetMasterServerError();
 
 	ShowMessageBox();
+	return true;
+}
 
-	//Получим путь к корневой (установочной) диектории мода
-	FZModSettings mod_settings;
+
+bool InitModSettings(FZModSettings& mod_settings, const string& modName, const string& modPath)
+{
 	mod_settings.modname = modName;
+
+	//Получим путь к корневой (установочной) директории мода
 	mod_settings.root_dir = VersionAbstraction()->UpdatePath("$app_data_root$", modPath);
 
 	if (mod_settings.root_dir[mod_settings.root_dir.size() - 1] != '\\' && mod_settings.root_dir[mod_settings.root_dir.size() - 1] != '/')
@@ -998,6 +1015,11 @@ bool DoWork(const string &modName, const string &modPath)
 		return false;
 	}
 
+	return true;
+}
+
+bool UpdateModFiles(FZModSettings &mod_settings)
+{
 	VersionAbstraction()->AssignStatus("Parsing master links list...");
 	FZModMirrorsSettings mirrors;
 	FZMasterListApproveType masterlinks_parse_result = DownloadAndParseMasterModsList(mod_settings, mirrors);
@@ -1080,26 +1102,33 @@ bool DoWork(const string &modName, const string &modPath)
 	//Выполним синхронизацию файлов
 	Msg("=======Actualizing game data=======");
 
-	if (!files.ActualizeFiles())
-	{
-		Msg("! Actualizing files failed!");
+	if (files.ActualizeFiles())
+		return true;
+
+	Msg("! Actualizing files failed!");
+	return false;
+}
+
+//Выполняется в отдельном потоке
+bool DoWork(const string &modName, const string &modPath)
+{
+	if (!PrepareGUI())
 		return false;
-	}
 
-	//Готово
-	VersionAbstraction()->AssignStatus("Building fsltx...");
-	Msg("Building fsltx");
-	VersionAbstraction()->SetVisualProgress(100);
+	g_SkipFullFileCheck = SkipFullFileCheck(g_ModParams);
+	FZModSettings mod_settings;
 
-	//Обновим fsgame
+	if (!InitModSettings(mod_settings, modName, modPath))
+		return false;
+
+	if (!UpdateModFiles(mod_settings))
+		return false;
+
 	Msg("full_install %s, shared patches %s", BoolToStr(mod_settings.fsltx_settings.full_install).c_str(), BoolToStr(mod_settings.fsltx_settings.share_patches_dir).c_str());
 
 	if (!BuildFsGame(mod_settings.root_dir + fsltx_name, mod_settings.fsltx_settings))
-	{
-		Msg("! Building fsltx failed!");
 		return false;
-	}
 
 	BuildUserLtx(mod_settings);	
-	return Finalize(mod_settings);
+	return RunClient(mod_settings);
 }
