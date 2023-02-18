@@ -582,40 +582,18 @@ bool CopyFileIfValid(const string &srcPath, const string &dstPath, const FZCheck
 
 void PreprocessFiles(FZFiles &files, const string &modRoot)
 {
-	const char* NO_PRELOAD = "-fz_nopreload";
-
-	// TODO: what is it?
-	bool disablePreload = true; // VersionAbstraction()->GetCoreParams().find(NO_PRELOAD) != string::npos;
-
 	files.AddIgnoredFile(GamedataFilesListName);
 	files.AddIgnoredFile(EngineFilesListName);
-	u32 userdataDirStrLen = strlen(UserdataDirName);
-	u32 engineDirStrLen = strlen(EngineDirName);
+	const u32 userdataDirStrLen = strlen(UserdataDirName);
 
 	for (int i = files.EntriesCount() - 1; i >= 0; i--)
 	{
-		string filename, src, dst;
 		pFZFileItemData e = files.GetEntry(i);
 
 		if (!strncmp(e->name.c_str(), UserdataDirName, userdataDirStrLen) && e->requiredAction == FZ_FILE_ACTION_UNDEFINED)
 		{
 			//спасаем файлы юзердаты от удаления
 			files.UpdateEntryAction(i, FZ_FILE_ACTION_IGNORE);
-		}
-		else if (!strncmp(e->name.c_str(), EngineDirName, engineDirStrLen) && e->requiredAction == FZ_FILE_ACTION_DOWNLOAD)
-		{
-			if (!disablePreload)
-			{
-				//Проверим, есть ли уже такой файл в текущем движке
-				string core_root = VersionAbstraction()->GetCoreApplicationPath();
-				filename = e->name;
-				filename.erase(0, engineDirStrLen);
-				src = core_root + filename;
-				dst = modRoot + e->name;
-
-				if (CopyFileIfValid(src, dst, e->target))
-					files.UpdateEntryAction(i, FZ_FILE_ACTION_NO);
-			}
 		}
 	}
 }
