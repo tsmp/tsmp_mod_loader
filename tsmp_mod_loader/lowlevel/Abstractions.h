@@ -40,6 +40,6 @@ public:
     virtual void ResetMasterServerError() = 0;
 };
 
-void InitAbstractions();
+bool InitAbstractions();
 FZAbstractGameVersion* VersionAbstraction();
 void FreeAbstractions();

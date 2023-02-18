@@ -5,7 +5,7 @@ const char* FzLoaderSemaphoreName = "Local\\FREEZONE_STK_MOD_LOADER_SEMAPHORE";
 const char* FzLoaderModulesMutexName = "Local\\FREEZONE_STK_MOD_LOADER_MODULES_MUTEX";
 const string ModDirPrefix = ".svn\\";
 
-enum class FZDllModFunResult : u32
+enum FZDllModFunResult : u32
 {
 	FZ_DLL_MOD_FUN_SUCCESS_LOCK = 0,    //Мод успешно загрузился, требуется залочить клиента по name_lock
 	FZ_DLL_MOD_FUN_SUCCESS_NOLOCK = 1,  //Успех, лочить клиента (с использованием name_lock) пока не надо
@@ -22,38 +22,16 @@ string g_ModRelPath;
 string g_ModName;
 string g_ModParams;
 
-BOOL APIENTRY DllMain(HMODULE hModule, DWORD  ul_reason_for_call, LPVOID lpReserved)
+BOOL APIENTRY DllMain(HMODULE hModule, DWORD, LPVOID)
 {
-	switch (ul_reason_for_call)
-	{
-	case DLL_PROCESS_ATTACH:
-	case DLL_THREAD_ATTACH:
-	case DLL_THREAD_DETACH:
-	case DLL_PROCESS_DETACH:
-		break;
-	}
-
 	g_hCurrentModule = hModule;
 	return TRUE;
-}
-
-bool InitModules()
-{
-	InitAbstractions();
-	Msg("- Abstractions Inited!");
-	return true;
-}
-
-void FreeModules()
-{
-	Msg("- Free modules");
-	FreeAbstractions();
 }
 
 bool ThreadBody_internal()
 {
 	//Убедимся, что нам разрешено выделить ресурсы
-	HANDLE mutex = CreateMutex(nullptr, FALSE, FzLoaderModulesMutexName);
+	const HANDLE mutex = CreateMutex(nullptr, FALSE, FzLoaderModulesMutexName);
 
 	if (!mutex || mutex == INVALID_HANDLE_VALUE)
 		return false;
@@ -64,7 +42,7 @@ bool ThreadBody_internal()
 		return false;
 	}
 
-	if (!InitModules())
+	if (!InitAbstractions())
 	{
 		ReleaseMutex(mutex);
 		CloseHandle(mutex);
@@ -87,12 +65,12 @@ bool ThreadBody_internal()
 
 		VersionAbstraction()->AssignStatus("Downloading failed.Try again.");
 
-		u32 i = 0;
-
-		while (i < 10000 && !VersionAbstraction()->CheckForUserCancelDownload() && !VersionAbstraction()->CheckForLevelExist())
+		for (u32 i = 0; i < 10000; i++)
 		{
+			if (VersionAbstraction()->CheckForUserCancelDownload() || VersionAbstraction()->CheckForLevelExist())
+				break;
+
 			Sleep(1);
-			i = i + 1;
 		}
 
 		VersionAbstraction()->StopVisualDownload();
@@ -101,9 +79,7 @@ bool ThreadBody_internal()
 	Msg("- Releasing resources");
 	VersionAbstraction()->ExecuteConsoleCommand("flush");
 
-	//FreeStringMemory();
-	FreeModules();
-
+	FreeAbstractions();
 	ReleaseMutex(mutex);
 	CloseHandle(mutex);
 	return true;
@@ -169,7 +145,7 @@ bool RunModLoad()
 	{
 		Msg("! Cannot start thread");
 		FreeLibrary(g_hDll);
-		g_hDll = 0;
+		g_hDll = nullptr;
 		return false;
 	}
 
@@ -182,7 +158,7 @@ void AbortConnection()
 	VersionAbstraction()->AbortConnection();
 }
 
-bool ValidateInput(char* modName, char* modParams)
+bool ValidateInput(const char* modName, const char* modParams)
 {
 	const u32 MaxNameSize = 4096;
 	const u32 MaxParamsSize = 4096;
@@ -213,16 +189,16 @@ bool ValidateInput(char* modName, char* modParams)
 	return true;
 }
 
-FZDllModFunResult ModLoad_internal(char* modName, char* modParams)
+FZDllModFunResult ModLoad_internal(const char* modName, const char* modParams)
 {
-	FZDllModFunResult result = FZDllModFunResult::FZ_DLL_MOD_FUN_FAILURE;
-	HANDLE mutex = CreateMutex(nullptr, FALSE, FzLoaderModulesMutexName);
+	FZDllModFunResult result = FZ_DLL_MOD_FUN_FAILURE;
+	const HANDLE mutex = CreateMutex(nullptr, FALSE, FzLoaderModulesMutexName);
 
 	if (!mutex || mutex == INVALID_HANDLE_VALUE || WaitForSingleObject(mutex, 0) != WAIT_OBJECT_0)
 		return result;
 
 	//Отлично, основной поток закачки не стартует, пока мы не отпустим мьютекс
-	if (InitModules())
+	if (InitAbstractions())
 	{
 		AbortConnection();
 
@@ -239,12 +215,12 @@ FZDllModFunResult ModLoad_internal(char* modName, char* modParams)
 			{
 				// Не лочимся - загрузка может окончиться неудачно либо быть отменена
 				// кроме того, повторный коннект при активной загрузке и выставленной инфе о моде приведет к неожиданным результатам
-				result = FZDllModFunResult::FZ_DLL_MOD_FUN_SUCCESS_NOLOCK;
+				result = FZ_DLL_MOD_FUN_SUCCESS_NOLOCK;
 			}
 		}
 
 		//Основной поток закачки сам проинициализирует их заново - если не освобождать, происходит какая-то фигня при освобождении из другого потока.
-		FreeModules();
+		FreeAbstractions();
 	}
 
 	ReleaseMutex(mutex);
@@ -273,12 +249,11 @@ FZDllModFunResult ModLoad_internal(char* modName, char* modParams)
  * -binlist <URL> - ссылка на адрес, по которому берется список файлов движка (для работы требуется запуск клиента с ключлм -fz_custom_bin)
  * -gamelist <URL> - ссылка на адрес, по которому берется список файлов мода (геймдатных\патчей)
  * -srv <IP> - IP-адрес сервера, к которому необходимо присоединиться после запуска мода
- * -srvname <domainname> - доменное имя, по которому располагается сервер. Можно использовать вместо параметра -srv в случае динамического IP сервера
+ * -srvname <domainname> - (не реализовано) доменное имя, по которому располагается сервер. Можно использовать вместо параметра -srv в случае динамического IP сервера
  * -port <number> - порт сервера
  * -gamespymode - стараться использовать загрузку средствами GameSpy
  * -fullinstall - мод представляет собой самостоятельную копию игры, связь с файлами оригинальной не требуется
  * -sharedpatches - использовать общую с инсталляцией игры директорию патчей
- * -logsev <number> - уровень серьезности логируемых сообщений, по умолчанию FZ_LOG_ERROR
  * -configsdir <string> - директория конфигов
  * -exename <string> - имя исполняемого файла мода
  * -includename - включить в строку запуска мода параметр /name= с именем игрока
@@ -289,33 +264,31 @@ FZDllModFunResult ModLoad_internal(char* modName, char* modParams)
 // Сюда передается управление из волшебного пакета sysmsgs
 extern "C" __declspec(dllexport) u32 __stdcall ModLoad(char* modName, char* modParams)
 {
-	HANDLE semaphore = CreateSemaphore(nullptr, 1, 1, FzLoaderSemaphoreName);
-	FZDllModFunResult result = FZDllModFunResult::FZ_DLL_MOD_FUN_FAILURE;
+	const HANDLE semaphore = CreateSemaphore(nullptr, 1, 1, FzLoaderSemaphoreName);
+	FZDllModFunResult result = FZ_DLL_MOD_FUN_FAILURE;
 
 	if (!semaphore || semaphore == INVALID_HANDLE_VALUE)
-		return static_cast<u32>(result);
+		return result;
 
 	if (WaitForSingleObject(semaphore, 0) == WAIT_OBJECT_0)
 	{
 		// Отлично, семафор наш. Сохраним хендл на него для последующего освобождения
 		g_hFzLoaderSemaphore = semaphore;
-		g_hDll = 0;
+		g_hDll = nullptr;
 
 		result = ModLoad_internal(modName, modParams);
 
 		// В случае успеха семафор будет разлочен в другом треде после окончания загрузки.
-		if (result == FZDllModFunResult::FZ_DLL_MOD_FUN_FAILURE && g_hDll)
+		if (result == FZ_DLL_MOD_FUN_FAILURE && g_hDll)
 		{
 			FreeLibrary(g_hDll);
-			g_hDll = 0;
+			g_hDll = nullptr;
 		}
 
 		g_hFzLoaderSemaphore = INVALID_HANDLE_VALUE;
 		ReleaseSemaphore(semaphore, 1, nullptr);
-		CloseHandle(semaphore);
 	}
-	else
-		CloseHandle(semaphore); // Не повезло, сворачиваемся.
 
-	return static_cast<u32>(result);
+	CloseHandle(semaphore);
+	return result;
 }

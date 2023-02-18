@@ -1123,37 +1123,40 @@ FZ_GAME_VERSION FZGameVersionCreator::GetGameVersion()
 
 FZAbstractGameVersion* FZGameVersionCreator::DetermineGameVersion()
 {
+	FZAbstractGameVersion* result = nullptr;
+
 	switch (GetGameVersion())
 	{
 	case FZ_GAME_VERSION::FZ_VER_SOC_10006:
-		return new FZGameVersion10006();
+		result = new FZGameVersion10006();
 		break;
 	case FZ_GAME_VERSION::FZ_VER_SOC_10006_V2:
-		return new FZGameVersion10006_v2();
-		break;
-	default:
-		return nullptr; // return new FZUnknownGameVersion();
+		result = new FZGameVersion10006_v2();
 		break;
 	}
+
+	return result;
 }
 
-//////////////////////////////////////////////////////////////////////////////////////
-//{Global area}
-//////////////////////////////////////////////////////////////////////////////////////
-
-FZAbstractGameVersion* _abstraction = nullptr;
+FZAbstractGameVersion* g_Abstraction = nullptr;
 
 FZAbstractGameVersion* VersionAbstraction()
 {
-	return _abstraction;
+	return g_Abstraction;
 }
 
-void InitAbstractions()
+bool InitAbstractions()
 {
-	_abstraction = FZGameVersionCreator::DetermineGameVersion();
+	g_Abstraction = FZGameVersionCreator::DetermineGameVersion();
+
+	if (g_Abstraction)
+		Msg("- Abstractions Inited!");
+
+	return g_Abstraction;
 }
 
 void FreeAbstractions()
 {
-	delete _abstraction;
+	Msg("- Free abstractions");
+	delete g_Abstraction;
 }
