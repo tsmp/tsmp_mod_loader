@@ -14,13 +14,13 @@ enum FZActualizingStatus
 struct FZFileActualizingProgressInfo
 {
 	FZActualizingStatus status;
-	long long total_mod_size;
-	long long total_up_to_date_size;
-	long long estimated_dl_size;
-	long long total_downloaded;
+	long long totalModSize;
+	long long totalUpToDateSize;
+	long long estimatedDlSize;
+	long long totalDownloaded;
 };
 
-typedef bool (*FZFileActualizingCallback)(const FZFileActualizingProgressInfo &info, void* userdata); //return false if need to stop downloading
+using FZFileActualizingCallback = bool(*)(const FZFileActualizingProgressInfo &info, void* userdata); //return false if need to stop downloading
 
 enum FZFileItemAction
 {
@@ -48,8 +48,8 @@ struct FZFileItemData
 {
 	string name;
 	string url; // учитывается только при FZ_FILE_ACTION_DOWNLOAD
-	u32 compression_type;
-	FZFileItemAction required_action;
+	u32 compressionType;
+	FZFileItemAction requiredAction;
 	FZCheckParams real;
 	FZCheckParams target; // учитывается только при FZ_FILE_ACTION_DOWNLOAD
 };
@@ -59,16 +59,16 @@ using pFZFileItemData = FZFileItemData*;
 class FZFiles
 {
 protected:
-	string _parent_path;
-	vector<pFZFileItemData> _files;
+	string m_ParentPath;
+	vector<pFZFileItemData> m_Files;
 
-	FZFileActualizingCallback _callback;
-	void* _cb_userdata;
+	FZFileActualizingCallback m_pCallback;
+	void* m_pCbUserdata;
 
-	FZDlMode _mode;
+	FZDlMode m_Mode;
 
-	bool _ScanDir(const string &dir_path);                                                                 //сканирует поддиректорию
-	pFZFileItemData _CreateFileData(const string &name, const string &url, u32 compression, const FZCheckParams &need_checks); //создает новую запись о файле и добавляет в список
+	bool ScanDir(const string &dir_path);                                                                 //сканирует поддиректорию
+	pFZFileItemData CreateFileData(const string &name, const string &url, u32 compression, const FZCheckParams &needChecks); //создает новую запись о файле и добавляет в список
 
 public:
 	FZFiles();
@@ -76,8 +76,8 @@ public:
 
 	void Clear();                                                                                          //полная очистка данных списка
 	void Dump(/*FZLogMessageSeverity  severity : = FZ_LOG_INFO*/);                                                  //вывод текущего состояния списка, отладочная опция
-	bool ScanPath(string dir_path);                                                                 //построение списка файлов в указанной директории и ее поддиректориях для последующей актуализации
-	bool UpdateFileInfo(string filename, const string &url, u32 compression_type, const FZCheckParams &targetParams);      //обновить сведения о целевых параметрах файла
+	bool ScanPath(string dirPath);                                                                 //построение списка файлов в указанной директории и ее поддиректориях для последующей актуализации
+	bool UpdateFileInfo(string filename, const string &url, u32 compressionType, const FZCheckParams &targetParams);      //обновить сведения о целевых параметрах файла
 	bool ActualizeFiles();                                                                          //актуализировать игровые данные
 	void SortBySize();                                                                                     //отсортировать (по размеру) для оптимизации скорости скачивания
 	bool AddIgnoredFile(const string &filename);                                                           //добавить игнорируемый файл; вызывать после того, как все UpdateFileInfo выполнены

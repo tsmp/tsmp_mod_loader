@@ -22,7 +22,7 @@ bool ForceDirectories(const string &path)
 	return res == ERROR_ALREADY_EXISTS || res == ERROR_SUCCESS;
 }
 
-bool _DeleteFile(const string &path)
+bool DeleteFile(const string &path)
 {
 	return !!DeleteFile(path.c_str());
 }
@@ -53,9 +53,9 @@ bool CompareFiles(const FZCheckParams &c1, const FZCheckParams &c2)
 	return res && c1.crc32 == c2.crc32;
 }
 
-bool FZFiles::_ScanDir(const string &dir_path)
+bool FZFiles::ScanDir(const string &dir_path)
 {
-	string name = _parent_path + dir_path + "*.*";
+	string name = m_ParentPath + dir_path + "*.*";
 
 	WIN32_FIND_DATA data;
 	HANDLE hndl = FindFirstFile(name.c_str(), &data);
@@ -71,10 +71,10 @@ bool FZFiles::_ScanDir(const string &dir_path)
 			continue;
 
 		if (data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
-			_ScanDir(dir_path + name + '\\');
+			ScanDir(dir_path + name + '\\');
 		else
 		{
-			_CreateFileData(dir_path + name, "", 0, GetDummyChecks());
+			CreateFileData(dir_path + name, "", 0, GetDummyChecks());
 			Msg("%s %s", FM_LBL, (dir_path + name).c_str());
 		}
 	} while (FindNextFile(hndl, &data));
@@ -90,26 +90,26 @@ inline std::string trim(const std::string& s)
 	return (wsback <= wsfront ? std::string() : std::string(wsfront, wsback));
 }
 
-pFZFileItemData FZFiles::_CreateFileData(const string &name, const string &url, u32 compression, const FZCheckParams &need_checks)
+pFZFileItemData FZFiles::CreateFileData(const string &name, const string &url, u32 compression, const FZCheckParams &needChecks)
 {
-	pFZFileItemData result = new FZFileItemData();
+	auto result = new FZFileItemData();
 
 	result->name = trim(name);
 	result->url = trim(url);
-	result->compression_type = compression;
-	result->required_action = FZ_FILE_ACTION_UNDEFINED;
-	result->target = need_checks;
+	result->compressionType = compression;
+	result->requiredAction = FZ_FILE_ACTION_UNDEFINED;
+	result->target = needChecks;
 	result->real = GetDummyChecks();
 
-	_files.push_back(result);
+	m_Files.push_back(result);
 	return result;
 }
 
 FZFiles::FZFiles()
 {
-	_callback = nullptr;
-	_cb_userdata = nullptr;
-	_mode = FZ_DL_MODE_CURL;
+	m_pCallback = nullptr;
+	m_pCbUserdata = nullptr;
+	m_Mode = FZ_DL_MODE_CURL;
 }
 
 FZFiles::~FZFiles()
@@ -119,46 +119,46 @@ FZFiles::~FZFiles()
 
 void FZFiles::Clear()
 {
-	_parent_path = "";
+	m_ParentPath = "";
 	
-	for (pFZFileItemData item : _files)
+	for (pFZFileItemData item : m_Files)
 		delete item;
 
-	_files.clear();
+	m_Files.clear();
 }
 
 void FZFiles::Dump( /*severity:FZLogMessageSeverity = FZ_LOG_INFO*/)
 {
 	Msg("- %s =======File list dump start=======", FM_LBL);
 
-	for (pFZFileItemData data : _files)
+	for (pFZFileItemData data : m_Files)
 	{
 		if (data)
-			Msg("- %s %s, action=%u, size %u (%u), crc32 = %#08x (%#08x), url=%s", FM_LBL, data->name.c_str(), data->required_action, data->real.size, data->target.size,
+			Msg("- %s %s, action=%u, size %u (%u), crc32 = %#08x (%#08x), url=%s", FM_LBL, data->name.c_str(), data->requiredAction, data->real.size, data->target.size,
 				data->real.crc32, data->target.crc32, data->url.c_str());
 	}
 
 	Msg("- %s =======File list dump end=======", FM_LBL);
 }
 
-bool FZFiles::ScanPath(string dir_path)
+bool FZFiles::ScanPath(string dirPath)
 {
 	Clear();
 	Msg("- %s =======Scanning directory=======", FM_LBL);
 
-	if (dir_path[dir_path.size() - 1] != '\\' && dir_path[dir_path.size() - 1] != '/')
-		dir_path += '\\';
+	if (dirPath[dirPath.size() - 1] != '\\' && dirPath[dirPath.size() - 1] != '/')
+		dirPath += '\\';
 
-	_parent_path = dir_path;
-	_ScanDir("");
+	m_ParentPath = dirPath;
+	ScanDir("");
 	Msg("- %s =======Scanning finished=======", FM_LBL);
 	return true;
 }
 
-bool FZFiles::UpdateFileInfo(string filename, const string &url, u32 compression_type, const FZCheckParams &targetParams)
+bool FZFiles::UpdateFileInfo(string filename, const string &url, u32 compressionType, const FZCheckParams &targetParams)
 {
 	Msg("- %s Updating file info for %s, size = %u, crc = %#08x, url = %s, compression %u",
-		FM_LBL, filename.c_str(), targetParams.size, targetParams.crc32, /* md5=[' + targetParams.md5 + ']' */  url.c_str(), compression_type);
+		FM_LBL, filename.c_str(), targetParams.size, targetParams.crc32, /* md5=[' + targetParams.md5 + ']' */  url.c_str(), compressionType);
 
 	filename = trim(filename);
 
@@ -171,7 +171,7 @@ bool FZFiles::UpdateFileInfo(string filename, const string &url, u32 compression
 	//Пробуем найти файл среди существующих
 	pFZFileItemData filedata = nullptr;
 
-	for (pFZFileItemData item : _files)
+	for (pFZFileItemData item : m_Files)
 	{
 		if (item && item->name == filename)
 		{
@@ -183,8 +183,8 @@ bool FZFiles::UpdateFileInfo(string filename, const string &url, u32 compression
 	if (!filedata)
 	{
 		//Файла нет в списке. Однозначно надо качать.
-		filedata = _CreateFileData(filename, url, compression_type, targetParams);
-		filedata->required_action = FZ_FILE_ACTION_DOWNLOAD;
+		filedata = CreateFileData(filename, url, compressionType, targetParams);
+		filedata->requiredAction = FZ_FILE_ACTION_DOWNLOAD;
 		Msg("- %s Created new file list entry", FM_LBL);
 	}
 	else
@@ -193,7 +193,7 @@ bool FZFiles::UpdateFileInfo(string filename, const string &url, u32 compression
 		if (IsDummy(filedata->real))
 		{
 			//посчитаем его CRC32, если ранее не считался
-			if (!GetFileChecks(_parent_path + filedata->name, filedata->real, !targetParams.md5.empty()))
+			if (!GetFileChecks(m_ParentPath + filedata->name, filedata->real, !targetParams.md5.empty()))
 			{
 				filedata->real.crc32 = 0;
 				filedata->real.size = 0;
@@ -205,18 +205,18 @@ bool FZFiles::UpdateFileInfo(string filename, const string &url, u32 compression
 
 		if (CompareFiles(filedata->real, targetParams))
 		{
-			filedata->required_action = FZ_FILE_ACTION_NO;
+			filedata->requiredAction = FZ_FILE_ACTION_NO;
 			Msg("- %s Entry exists, file up-to-date", FM_LBL);
 		}
 		else
 		{
-			filedata->required_action = FZ_FILE_ACTION_DOWNLOAD;
+			filedata->requiredAction = FZ_FILE_ACTION_DOWNLOAD;
 			Msg("- %s Entry exists, file outdated", FM_LBL);
 		}
 
 		filedata->target = targetParams;
 		filedata->url = url;
-		filedata->compression_type = compression_type;
+		filedata->compressionType = compressionType;
 	}
 
 	return true;
@@ -224,29 +224,29 @@ bool FZFiles::UpdateFileInfo(string filename, const string &url, u32 compression
 
 void FZFiles::SortBySize()
 {
-	if (_files.size() < 2)
+	if (m_Files.size() < 2)
 		return;
 
 	//сортируем так, чтобы самые большие файлы оказались в конце
-	for (int i = _files.size() - 1; i > 0; i--)
+	for (int i = m_Files.size() - 1; i > 0; i--)
 	{
 		int max = i;
 
 		//Ищем самый большой файл
 		for (int j = i - 1; j >= 0; j--)
 		{
-			if (!_files[j])
+			if (!m_Files[j])
 				continue;
 
-			if (!_files[max] || _files[max]->target.size < _files[i]->target.size)
+			if (!m_Files[max] || m_Files[max]->target.size < m_Files[i]->target.size)
 				max = j;
 		}
 
 		if (i != max)
 		{
-			pFZFileItemData temp = _files[i];
-			_files[i] = _files[max];
-			_files[max] = temp;
+			pFZFileItemData temp = m_Files[i];
+			m_Files[i] = m_Files[max];
+			m_Files[max] = temp;
 		}
 	}
 }
@@ -255,34 +255,34 @@ bool FZFiles::ActualizeFiles()
 {
 	const u32 MAX_ACTIVE_DOWNLOADERS = 4;  //for safety
 
-	long long total_dl_size, total_actual_size, downloaded_now, downloaded_total;
-	total_dl_size = total_actual_size = downloaded_total = 0;
+	long long totalActualSize, downloadedTotal;
+	long long totalDlSize = totalActualSize = downloadedTotal = 0;
 
-	for (u32 i = 0; i < _files.size(); i++)
+	for (u32 i = 0; i < m_Files.size(); i++)
 	{
-		pFZFileItemData filedata = _files[i];
+		pFZFileItemData filedata = m_Files[i];
 
 		if (!filedata)
 			continue;
 
-		if (filedata->required_action == FZ_FILE_ACTION_UNDEFINED)
+		if (filedata->requiredAction == FZ_FILE_ACTION_UNDEFINED)
 		{
 			//такого файла не было в списке. Сносим.
 			Msg("- %s Deleting file %s", FM_LBL, filedata->name.c_str());
 
-			if (!_DeleteFile(_parent_path + filedata->name))
+			if (!DeleteFile(m_ParentPath + filedata->name))
 			{
 				Msg("! %s Failed to delete ", FM_LBL, filedata->name.c_str());
 				return false;
 			}
 
 			delete filedata;
-			_files.erase(_files.begin() + i);
+			m_Files.erase(m_Files.begin() + i);
 		}
-		else if (filedata->required_action == FZ_FILE_ACTION_DOWNLOAD)
+		else if (filedata->requiredAction == FZ_FILE_ACTION_DOWNLOAD)
 		{
-			total_dl_size = total_dl_size + filedata->target.size;
-			string str = _parent_path + filedata->name;
+			totalDlSize = totalDlSize + filedata->target.size;
+			string str = m_ParentPath + filedata->name;
 
 			while (str[str.size() - 1] != '\\' && str[str.size() - 1] != '/')
 				str.resize(str.size() - 1);
@@ -293,11 +293,11 @@ bool FZFiles::ActualizeFiles()
 				return false;
 			}
 		}
-		else if (filedata->required_action == FZ_FILE_ACTION_NO)
+		else if (filedata->requiredAction == FZ_FILE_ACTION_NO)
 		{
-			total_actual_size = total_actual_size + filedata->target.size;
+			totalActualSize = totalActualSize + filedata->target.size;
 		}
-		else if (filedata->required_action == FZ_FILE_ACTION_IGNORE)
+		else if (filedata->requiredAction == FZ_FILE_ACTION_IGNORE)
 		{
 			Msg("- %s Ignoring file %s", FM_LBL, filedata->name.c_str());
 		}
@@ -308,32 +308,30 @@ bool FZFiles::ActualizeFiles()
 		}
 	}
 
-	Msg("- %s Total up-to-date size %u", FM_LBL, total_actual_size);
-	Msg("- %s Total downloads size %u", FM_LBL, total_dl_size);
+	Msg("- %s Total up-to-date size %u", FM_LBL, totalActualSize);
+	Msg("- %s Total downloads size %u", FM_LBL, totalDlSize);
 
 	Msg("- %s Starting downloads", FM_LBL);
 	bool result = true;
 
 	//Вызовем колбэк для сообщения о начале стадии загрузки
-	FZFileActualizingProgressInfo cb_info;
-	cb_info.total_downloaded = 0;
-	cb_info.status = FZ_ACTUALIZING_BEGIN;
-	cb_info.estimated_dl_size = total_dl_size;
-	cb_info.total_up_to_date_size = total_actual_size;
-	cb_info.total_mod_size = total_dl_size + total_actual_size;
+	FZFileActualizingProgressInfo cbInfo;
+	cbInfo.totalDownloaded = 0;
+	cbInfo.status = FZ_ACTUALIZING_BEGIN;
+	cbInfo.estimatedDlSize = totalDlSize;
+	cbInfo.totalUpToDateSize = totalActualSize;
+	cbInfo.totalModSize = totalDlSize + totalActualSize;
 
-	if (_callback)
-		result = _callback(cb_info, _cb_userdata);
-
-	FZDownloaderThread* thread;
-
+	if (m_pCallback)
+		result = m_pCallback(cbInfo, m_pCbUserdata);
+	
 	//Начнем загрузку
-	//if (_mode==FZ_DL_MODE_GAMESPY)
-	thread = new FZGameSpyDownloaderThread();
+	//if (m_Mode==FZ_DL_MODE_GAMESPY)
+	auto thread = new FZGameSpyDownloaderThread();
 	//else
 	//    thread=new FZCurlDownloaderThread();
 
-	int last_file_index = _files.size() - 1;
+	int lastFileIndex = m_Files.size() - 1;
 
 	vector<FZFileDownloader*> downloaders;
 	downloaders.reserve(MAX_ACTIVE_DOWNLOADERS);
@@ -342,7 +340,7 @@ bool FZFiles::ActualizeFiles()
 		downloaders.push_back(nullptr);
 
 	bool finished = false;
-	cb_info.status = FZ_ACTUALIZING_IN_PROGRESS;
+	cbInfo.status = FZ_ACTUALIZING_IN_PROGRESS;
 
 	while (!finished)
 	{
@@ -354,7 +352,7 @@ bool FZFiles::ActualizeFiles()
 		}
 
 		finished = true; //флаг сбросится при активной загрузке
-		downloaded_now = 0;
+		long long downloadedNow = 0;
 
 		//смотрим на текущий статус слотов загрузки
 		for (u32 i = 0; i < downloaders.size(); i++)
@@ -362,24 +360,24 @@ bool FZFiles::ActualizeFiles()
 			if (!downloaders[i])
 			{
 				//Слот свободен. Поставим туда что-нибудь, если найдем
-				while (last_file_index >= 0)
+				while (lastFileIndex >= 0)
 				{
-					pFZFileItemData filedata = _files[last_file_index];
-					last_file_index = last_file_index - 1; //сдвигаем индекс на необработанный файл
+					pFZFileItemData filedata = m_Files[lastFileIndex];
+					lastFileIndex = lastFileIndex - 1; //сдвигаем индекс на необработанный файл
 
-					if (filedata && filedata->required_action == FZ_FILE_ACTION_DOWNLOAD)
+					if (filedata && filedata->requiredAction == FZ_FILE_ACTION_DOWNLOAD)
 					{
 						//файл для загрузки найден, помещаем его в слот.
 						Msg("- %s Starting download of %s", FM_LBL, filedata->url.c_str());
 						finished = false;
 
-						downloaders[i] = thread->CreateDownloader(filedata->url, _parent_path + filedata->name, filedata->compression_type);
+						downloaders[i] = thread->CreateDownloader(filedata->url, m_ParentPath + filedata->name, filedata->compressionType);
 						result = downloaders[i]->StartAsyncDownload();
 
 						if (!result)
 							Msg("! %s Cannot start download for %s", FM_LBL, filedata->url.c_str());
 						else
-							filedata->required_action = FZ_FILE_ACTION_VERIFY;
+							filedata->requiredAction = FZ_FILE_ACTION_VERIFY;
 
 						break;
 					}
@@ -389,14 +387,14 @@ bool FZFiles::ActualizeFiles()
 			{
 				//Слот активен. Обновим информацию о прогрессе
 				finished = false;
-				downloaded_now = downloaded_now + downloaders[i]->DownloadedBytes();
+				downloadedNow = downloadedNow + downloaders[i]->DownloadedBytes();
 			}
 			else
 			{
 				//Слот завершил работу. Освободим его.
 				Msg("- %s Need free slot contained %s", FM_LBL, downloaders[i]->GetFilename().c_str());
 				result = downloaders[i]->IsSuccessful();
-				downloaded_total = downloaded_total + downloaders[i]->DownloadedBytes();
+				downloadedTotal = downloadedTotal + downloaders[i]->DownloadedBytes();
 
 				if (!result)
 					Msg("! %s Download failed for %s", FM_LBL, downloaders[i]->GetFilename().c_str());;
@@ -410,10 +408,10 @@ bool FZFiles::ActualizeFiles()
 		}
 
 		//Вызовем колбэк прогресса
-		cb_info.total_downloaded = downloaded_now + downloaded_total;
+		cbInfo.totalDownloaded = downloadedNow + downloadedTotal;
 
-		if (_callback)
-			result = _callback(cb_info, _cb_userdata);
+		if (m_pCallback)
+			result = m_pCallback(cbInfo, m_pCbUserdata);
 
 		if (result)
 			Sleep(100);
@@ -439,27 +437,27 @@ bool FZFiles::ActualizeFiles()
 	if (result)
 	{
 		//убедимся, что все требуемое скачалось корректно
-		if (total_dl_size > 0)
+		if (totalDlSize > 0)
 		{
 			Msg("- %s Verifying downloaded", FM_LBL);
 
-			cb_info.status = FZ_ACTUALIZING_VERIFYING_START;
-			cb_info.total_downloaded = 0;
-			result = _callback(cb_info, _cb_userdata);
+			cbInfo.status = FZ_ACTUALIZING_VERIFYING_START;
+			cbInfo.totalDownloaded = 0;
+			result = m_pCallback(cbInfo, m_pCbUserdata);
 
-			for (pFZFileItemData filedata : _files)
+			for (pFZFileItemData filedata : m_Files)
 			{
 				if (!result)
 					break;
 
-				if (filedata && filedata->required_action == FZ_FILE_ACTION_VERIFY)
+				if (filedata && filedata->requiredAction == FZ_FILE_ACTION_VERIFY)
 				{
-					if (GetFileChecks(_parent_path + filedata->name, filedata->real, !filedata->target.md5.empty()))
+					if (GetFileChecks(m_ParentPath + filedata->name, filedata->real, !filedata->target.md5.empty()))
 					{
 						if (!CompareFiles(filedata->real, filedata->target))
 						{
 							Msg("! %s File NOT synchronized: %s", FM_LBL, filedata->name.c_str());
-							filedata->required_action = FZ_FILE_ACTION_DOWNLOAD;
+							filedata->requiredAction = FZ_FILE_ACTION_DOWNLOAD;
 							result = false;
 
 						}
@@ -468,11 +466,11 @@ bool FZFiles::ActualizeFiles()
 					{
 						Msg("! %s Cannot check %s", FM_LBL, filedata->name.c_str());
 
-						filedata->required_action = FZ_FILE_ACTION_DOWNLOAD;
+						filedata->requiredAction = FZ_FILE_ACTION_DOWNLOAD;
 						result = false;
 					}
 				}
-				else if (filedata && filedata->required_action == FZ_FILE_ACTION_DOWNLOAD)
+				else if (filedata && filedata->requiredAction == FZ_FILE_ACTION_DOWNLOAD)
 				{
 					Msg("! %s File %s has FZ_FILE_ACTION_DOWNLOAD state after successful synchronization??? A bug suspected!", FM_LBL, filedata->name.c_str());
 					result = false;
@@ -480,9 +478,9 @@ bool FZFiles::ActualizeFiles()
 
 				if (result)
 				{
-					cb_info.status = FZ_ACTUALIZING_VERIFYING;
-					cb_info.total_downloaded = cb_info.total_downloaded + filedata->target.size;
-					result = _callback(cb_info, _cb_userdata);
+					cbInfo.status = FZ_ACTUALIZING_VERIFYING;
+					cbInfo.totalDownloaded = cbInfo.totalDownloaded + filedata->target.size;
+					result = m_pCallback(cbInfo, m_pCbUserdata);
 				}
 			}
 		}
@@ -491,16 +489,16 @@ bool FZFiles::ActualizeFiles()
 		if (result)
 		{
 			Msg("- %s Run finish callback", FM_LBL);
-			cb_info.status = FZ_ACTUALIZING_FINISHED;
-			cb_info.total_downloaded = downloaded_total;
-			result = _callback(cb_info, _cb_userdata);
+			cbInfo.status = FZ_ACTUALIZING_FINISHED;
+			cbInfo.totalDownloaded = downloadedTotal;
+			result = m_pCallback(cbInfo, m_pCbUserdata);
 		}
 		else
 		{
 			Msg("- %s Run fail callback", FM_LBL);
-			cb_info.status = FZ_ACTUALIZING_FAILED;
-			cb_info.total_downloaded = 0;
-			_callback(cb_info, _cb_userdata);
+			cbInfo.status = FZ_ACTUALIZING_FAILED;
+			cbInfo.totalDownloaded = 0;
+			m_pCallback(cbInfo, m_pCbUserdata);
 		}
 
 		Msg("- %s All downloads finished", FM_LBL);
@@ -514,7 +512,7 @@ bool FZFiles::AddIgnoredFile(const string &filename)
 	//Пробуем найти файл среди существующих
 	pFZFileItemData filedata = nullptr;
 
-	for (pFZFileItemData data : _files)
+	for (pFZFileItemData data : m_Files)
 	{
 		if (data && data->name == filename)
 		{
@@ -524,63 +522,63 @@ bool FZFiles::AddIgnoredFile(const string &filename)
 	}
 
 	if (filedata)
-		filedata->required_action = FZ_FILE_ACTION_IGNORE;
+		filedata->requiredAction = FZ_FILE_ACTION_IGNORE;
 
 	return true;
 }
 
 void FZFiles::SetCallback(FZFileActualizingCallback cb, void* userdata)
 {
-	_cb_userdata = userdata;
-	_callback = cb;
+	m_pCbUserdata = userdata;
+	m_pCallback = cb;
 }
 
 int FZFiles::EntriesCount()
 {
-	return _files.size();
+	return m_Files.size();
 }
 
 pFZFileItemData FZFiles::GetEntry(u32 i)
 {
-	if (i < _files.size())
-		return _files[i];
+	if (i < m_Files.size())
+		return m_Files[i];
 
 	return nullptr;
 }
 
 void FZFiles::DeleteEntry(u32 i)
 {
-	if (i >= _files.size())
+	if (i >= m_Files.size())
 		return;
 
-	delete _files[i];
-	_files.erase(_files.begin() + i);
+	delete m_Files[i];
+	m_Files.erase(m_Files.begin() + i);
 }
 
 void FZFiles::UpdateEntryAction(u32 i, FZFileItemAction action)
 {
-	if (i < _files.size())
-		_files[i]->required_action = action;
+	if (i < m_Files.size())
+		m_Files[i]->requiredAction = action;
 }
 
 void FZFiles::SetDlMode(FZDlMode mode)
 {
-	_mode = mode;
+	m_Mode = mode;
 }
 
 void FZFiles::Copy(const FZFiles &from)
 {
 	Clear();
 
-	_cb_userdata = from._cb_userdata;
-	_callback = from._callback;
-	_parent_path = from._parent_path;
-	_mode = from._mode;
+	m_pCbUserdata = from.m_pCbUserdata;
+	m_pCallback = from.m_pCallback;
+	m_ParentPath = from.m_ParentPath;
+	m_Mode = from.m_Mode;
 
-	for (pFZFileItemData filedata2 : from._files)
+	for (pFZFileItemData filedata2 : from.m_Files)
 	{
 		pFZFileItemData filedata = new FZFileItemData();
 		*filedata = *filedata2;
-		_files.push_back(filedata);
+		m_Files.push_back(filedata);
 	}
 }

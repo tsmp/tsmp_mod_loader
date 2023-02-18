@@ -10,12 +10,12 @@ public:
 	string GetStringDef(const string &section, const string &key, const string &def);
 	bool GetHex(const string &section, const string &key, u32 &val);
 	bool GetBoolDef(const string &section, const string &Key, bool def = false);
-	int GetSectionsCount();
-	string GetSectionName(int i);
+	u32 GetSectionsCount() const;
+	string GetSectionName(u32 i);
 
 protected:
-	string _filename;
-	vector<string> _sections;
+	string m_FileName;
+	vector<string> m_Sections;
 
-	bool _GetData(const string &section, const string &key, string &value);
+	bool InternalGetData(const string &section, const string &key, string &value);
 };

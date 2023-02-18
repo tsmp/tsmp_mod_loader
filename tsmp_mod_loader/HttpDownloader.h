@@ -11,7 +11,7 @@ enum FZDownloadResult
 class FZFileDownloader
 {
 public:
-	FZFileDownloader(const string &url, const string &filename, u32 compression_type, FZDownloaderThread* thread);
+	FZFileDownloader(const string &url, const string &filename, u32 compressionType, FZDownloaderThread* thread);
 	virtual ~FZFileDownloader();
 
 	virtual bool IsDownloading() = 0;
@@ -29,17 +29,17 @@ public:
 	virtual void Flush() = 0;
 
 protected:
-	std::recursive_mutex _lock;
+	std::recursive_mutex m_Lock;
 
-	u32 _request;
-	string _url;
-	string _filename;
-	u32 _downloaded_bytes;
-	u32 _compression_type;
-	FZDownloadResult _status;
-	u32 _acquires_count;
-	FZDownloaderThread* _thread;
-	u32 _filesize;
+	u32 m_Request;
+	string m_Url;
+	string m_FileName;
+	u32 m_DownloadedBytes;
+	u32 m_CompressionType;
+	FZDownloadResult m_Status;
+	u32 m_AcquiresCount;
+	FZDownloaderThread* m_pThread;
+	u32 m_FileSize;
 
 	void SetRequestId(u32 id);
 	u32 GetRequestId();
@@ -63,7 +63,7 @@ protected:
 class FZGameSpyFileDownloader : public FZFileDownloader
 {
 public:
-	FZGameSpyFileDownloader(string url, string filename, u32 compression_type, FZDownloaderThread* thread);
+	FZGameSpyFileDownloader(string url, string filename, u32 compressionType, FZDownloaderThread* thread);
 	virtual ~FZGameSpyFileDownloader();
 
 	bool IsDownloading() override;
@@ -75,7 +75,7 @@ class FZCurlFileDownloader : public FZFileDownloader
 	HANDLE _file_hndl;
 
 public:
-	FZCurlFileDownloader(string url, string filename, u32 compression_type, FZDownloaderThread* thread);
+	FZCurlFileDownloader(string url, string filename, u32 compressionType, FZDownloaderThread* thread);
 	~FZCurlFileDownloader();
 
 	bool IsDownloading() override;
@@ -102,12 +102,12 @@ public:
 
 	bool Add(FZDownloaderThreadCmd* item);
 	void Flush();
-	int Count();
+	u32 Count() const;
 	FZDownloaderThreadCmd* Get(int i);
 
 private:
-	vector<FZDownloaderThreadCmd*> _queue;
-	int _cur_items_cnt;
+	vector<FZDownloaderThreadCmd*> m_Queue;
+	u32 m_CurItemsCnt;
 };
 
 class FZDownloaderThread
@@ -117,56 +117,55 @@ public:
 	virtual ~FZDownloaderThread();
 
 	bool AddCommand(FZDownloaderThreadCmd* cmd);
-	virtual FZFileDownloader* CreateDownloader(const string &url, const string &filename, u32 compression_type) = 0;
+	virtual FZFileDownloader* CreateDownloader(const string &url, const string &filename, u32 compressionType) = 0;
 
 	virtual bool StartDownload(FZFileDownloader* dl) = 0;
 	virtual bool ProcessDownloads() = 0;
 	virtual bool CancelDownload(FZFileDownloader* dl) = 0;
 
 protected:
-	std::recursive_mutex _lock;
-	FZDownloaderThreadInfoQueue* _commands_queue;
-	vector<FZFileDownloader*> _downloaders;
-	bool _need_terminate;
-	bool _thread_active;
-	bool _good;
+	std::recursive_mutex m_RecursiveLock;
+	FZDownloaderThreadInfoQueue* m_CommandsQueue;
+	vector<FZFileDownloader*> m_Downloaders;
+	bool m_bNeedTerminate;
+	bool m_bThreadActive;
+	bool m_bGood;
 
-	void _WaitForThreadTermination();
-	int _FindDownloader(FZFileDownloader* dl);
-	void _ProcessCommands();
+	void WaitForThreadTermination();
+	int FindDownloader(FZFileDownloader* dl);
+	void ProcessCommands();
 
 	friend void DownloaderThreadBody(FZDownloaderThread* th);
 };
 
 class FZGameSpyDownloaderThread : public FZDownloaderThread
 {
-private:
-	HMODULE _dll_handle;
+	HMODULE m_hDll;
 
-	typedef void(__cdecl* gHttpStartupFuncPtr)();
-	gHttpStartupFuncPtr _xrGS_ghttpStartup;
+	using gHttpStartupFuncPtr = void(__cdecl* )();
+	gHttpStartupFuncPtr m_pXrGsGHttpStartup;
 
-	typedef void(__cdecl* gHttpCleanupFuncPtr)();
-	gHttpCleanupFuncPtr _xrGS_ghttpCleanup;
+	using gHttpCleanupFuncPtr = void(__cdecl* )();
+	gHttpCleanupFuncPtr m_pXrGsGHttpCleanup;
 
-	typedef void(__cdecl* gHttpThinkFuncPtr)();
-	gHttpThinkFuncPtr _xrGS_ghttpThink;
+	using gHttpThinkFuncPtr = void(__cdecl* )();
+	gHttpThinkFuncPtr m_pXrGsGHttpThink;
 
-	typedef u32(__cdecl* gHttpSaveFuncPtr)(char* url, char* filename, u32 blocking, void* completedCallback, void* param);
-	gHttpSaveFuncPtr _xrGS_ghttpSave;
+	using gHttpSaveFuncPtr = u32(__cdecl* )(char* url, char* filename, u32 blocking, void* completedCallback, void* param);
+	gHttpSaveFuncPtr m_pXrGsGHttpSave;
 
-	typedef u32(__cdecl* gHttpSaveExFuncPtr)(const char* url, const char* fname, char* headers, void* post, u32 throttle, u32 block, void* progressCB, void* completedCB, void* param);
-	gHttpSaveExFuncPtr _xrGS_ghttpSaveEx;
+	using gHttpSaveExFuncPtr = u32(__cdecl* )(const char* url, const char* fname, char* headers, void* post, u32 throttle, u32 block, void* progressCB, void* completedCB, void* param);
+	gHttpSaveExFuncPtr m_pXrGsGHttpSaveEx;
 
-	typedef void(__cdecl* gHttpCancelReqFuncPtr)(u32 request);
-	gHttpCancelReqFuncPtr _xrGS_ghttpCancelRequest;
+	using gHttpCancelReqFuncPtr = void(__cdecl* )(u32 request);
+	gHttpCancelReqFuncPtr m_pXrGsGHttpCancelRequest;
 
 public:
 
 	FZGameSpyDownloaderThread();
 	virtual ~FZGameSpyDownloaderThread();
 
-	FZFileDownloader* CreateDownloader(const string &url, const string &filename, u32 compression_type) override;
+	FZFileDownloader* CreateDownloader(const string &url, const string &filename, u32 compressionType) override;
 	bool StartDownload(FZFileDownloader* dl) override;
 	bool ProcessDownloads() override;
 	bool CancelDownload(FZFileDownloader* dl) override;

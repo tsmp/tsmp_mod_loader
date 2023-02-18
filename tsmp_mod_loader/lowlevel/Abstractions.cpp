@@ -26,9 +26,7 @@ enum EErrorDlg
 	PatchDownloadSuccess,
 	ConnectToMasterServer,
 	SessionTerminate,
-	LoadingError,
-	ErrMax,
-	ErrNoError = ErrMax,
+	LoadingError
 };
 
 typedef char string_path[2 * _MAX_PATH];
@@ -50,35 +48,36 @@ using pxrCoreData = xrCoreData*;
 class FZBaseGameVersion : public FZAbstractGameVersion
 {
 protected:
-	string _exe_module_name;
-	string _xrGame_module_name;
-	string _xrCore_module_name;
+	string m_ExeModuleName;
+	string m_XrGameModueName;
+	string m_XrCoreModuleName;
 
-	HMODULE _exe_module_address;
-	HMODULE _xrGame_module_address;
-	HMODULE _xrCore_module_address;
+	HMODULE m_ExeModuleAddress;
+	HMODULE m_XrGameModuleAddress;
+	HMODULE m_XrCoreModuleAddress;
 
-	void* _g_ppGameLevel;
-	u32* _g_ppConsole;
-	u32* _xr_FS;
-	pxrCoreData _core;
+	void* m_pGameLevel;
+	u32* m_pConsole;
+	u32* m_pXrFS;
+	pxrCoreData m_pCore;
 
-	void* CConsole__Execute;
-	void* CLocatorApi__update_path;
-	void* CLocatorApi__path_exists;
+	void* m_pCConsoleExecute;
+	void* m_pCConsoleGetString;
 
-	typedef void(__cdecl* Log_fun_Ptr)(const char* text);
-	Log_fun_Ptr Log_fun;
+	void* m_pCLocatorApiUpdatePath;
+	void* m_pCLocatorApiPathExists;
 
-	void* CConsole__GetString;
-	string _log_file_name;
+	using LogFuncPtr = void(__cdecl* )(const char* text);
+	LogFuncPtr m_pLogFunction;
+		
+	//string _log_file_name;
 
-	void* FunFromVTable(void* obj, u32 index);
-	void* DoEcxCall_noarg(void* fun, void* obj);
+	static void* FunFromVTable(void* obj, u32 index);
+	static void* DoEcxCall_noarg(void* fun, void* obj);
 
-	void* DoEcxCall_1arg(void* fun, void* obj, const void* arg);
-	void* DoEcxCall_2arg(void* fun, void* obj, const void* arg1, const void* arg2);
-	void* DoEcxCall_3arg(void* fun, void* obj, const void* arg1, const void* arg2, const void* arg3);
+	static void* DoEcxCall_1arg(void* fun, void* obj, const void* arg);
+	static void* DoEcxCall_2arg(void* fun, void* obj, const void* arg1, const void* arg2);
+	static void* DoEcxCall_3arg(void* fun, void* obj, const void* arg1, const void* arg2, const void* arg3);
 
 	void* GetLevel();
 
@@ -125,17 +124,17 @@ public:
 class FZCommonGameVersion : public FZBaseGameVersion
 {
 protected:
-	u32 _g_ppGamePersistent;	
-	u32 _pDevice;
-	volatile int *m_pG_pbRendering;
+	u32 m_pGamePersistent;	
+	u32 m_pDevice;
+	volatile int *m_pbRendering;
 
-	void* xrCriticalSection__Enter;
-	void* xrCriticalSection__Leave;
-	void* str_container__dock;
-	u32 _g_ppStringContainer;
+	void* m_pXrCriticalSectionEnter;
+	void* m_pXrCriticalSectionLeave;
+	void* m_pStrContainerDock;
+	u32 m_pStringContainer;
 
-	typedef void(__cdecl* ThreadSpawnFuncPtr)(void* function, const char* name, u32 stackSize, void* args);
-	ThreadSpawnFuncPtr thread_spawn;
+	using ThreadSpawnFuncPtr = void(__cdecl*)(void* function, const char* name, u32 stackSize, void* args);
+	ThreadSpawnFuncPtr m_pThreadSpawnFunc;
 
 	// НЕ ТРОГАТЬ! ОПАСНО ДЛЯ ЖИЗНИ!
 	void SafeExec_start();
@@ -281,7 +280,7 @@ u32 AtomicExchange(u32* addr, u32 val)
 	return InterlockedExchange(addr, val); // TODO: check
 }
 
-void uniassert(bool cond, const string &descr)
+void uniassert(const bool cond, const string &descr)
 {
 	if (cond)
 		return;
@@ -290,50 +289,50 @@ void uniassert(bool cond, const string &descr)
 	TerminateProcess(GetCurrentProcess(), 1);
 }
 
-string CConsole__GetString_fake(string cmd) { return "Unknown"; }
+string CConsoleGetStringFake(const string &cmd) { return "Unknown"; }
 
 FZBaseGameVersion::FZBaseGameVersion()
 {
-	_exe_module_name = "xr_3DA.exe";
-	_exe_module_address = GetModuleHandle(_exe_module_name.c_str());
+	m_ExeModuleName = "xr_3DA.exe";
+	m_ExeModuleAddress = GetModuleHandle(m_ExeModuleName.c_str());
 
-	_xrGame_module_name = "xrGame";
-	_xrGame_module_address = GetModuleHandle(_xrGame_module_name.c_str());
+	m_XrGameModueName = "xrGame";
+	m_XrGameModuleAddress = GetModuleHandle(m_XrGameModueName.c_str());
 
-	_xrCore_module_name = "xrCore";
-	_xrCore_module_address = GetModuleHandle(_xrCore_module_name.c_str());
+	m_XrCoreModuleName = "xrCore";
+	m_XrCoreModuleAddress = GetModuleHandle(m_XrCoreModuleName.c_str());
 
-	uniassert(_exe_module_address, "xr_3DA is 0");
-	uniassert(_xrGame_module_address, "xrGame is 0");
-	uniassert(_xrCore_module_address, "xrCore is 0");
+	uniassert(m_ExeModuleAddress, "xr_3DA is 0");
+	uniassert(m_XrGameModuleAddress, "xrGame is 0");
+	uniassert(m_XrCoreModuleAddress, "xrCore is 0");
 
-	_g_ppGameLevel = GetProcAddress(_exe_module_address, "?g_pGameLevel@@3PAVIGame_Level@@A");
-	uniassert(_g_ppGameLevel, "g_ppGameLevel is 0");
+	m_pGameLevel = GetProcAddress(m_ExeModuleAddress, "?m_pGameLevel@@3PAVIGame_Level@@A");
+	uniassert(m_pGameLevel, "g_ppGameLevel is 0");
 
-	_g_ppConsole = reinterpret_cast<u32*>(GetProcAddress(_exe_module_address, "?Console@@3PAVCConsole@@A"));
-	uniassert(_g_ppConsole, "console is 0");
+	m_pConsole = reinterpret_cast<u32*>(GetProcAddress(m_ExeModuleAddress, "?Console@@3PAVCConsole@@A"));
+	uniassert(m_pConsole, "console is 0");
 
-	_core = (pxrCoreData)GetProcAddress(_xrCore_module_address, "?Core@@3VxrCore@@A");
-	uniassert(_core, "core is 0");
+	m_pCore = (pxrCoreData)GetProcAddress(m_XrCoreModuleAddress, "?Core@@3VxrCore@@A");
+	uniassert(m_pCore, "core is 0");
 
-	_xr_FS = reinterpret_cast<u32*>(GetProcAddress(_xrCore_module_address, "?xr_FS@@3PAVCLocatorAPI@@A"));
-	uniassert(_xr_FS, "fs is 0");
+	m_pXrFS = reinterpret_cast<u32*>(GetProcAddress(m_XrCoreModuleAddress, "?m_pXrFS@@3PAVCLocatorAPI@@A"));
+	uniassert(m_pXrFS, "fs is 0");
 
-	CConsole__Execute = GetProcAddress(_exe_module_address, "?Execute@CConsole@@QAEXPBD@Z");
-	uniassert(CConsole__Execute, "CConsole::Execute is 0");
+	m_pCConsoleExecute = GetProcAddress(m_ExeModuleAddress, "?Execute@CConsole@@QAEXPBD@Z");
+	uniassert(m_pCConsoleExecute, "CConsole::Execute is 0");
 
-	CLocatorApi__update_path = GetProcAddress(_xrCore_module_address, "?update_path@CLocatorAPI@@QAEPBDAAY0CAI@DPBD1@Z");
-	uniassert(CLocatorApi__update_path, "CLocatorApi::update_path is 0");
+	m_pCLocatorApiUpdatePath = GetProcAddress(m_XrCoreModuleAddress, "?update_path@CLocatorAPI@@QAEPBDAAY0CAI@DPBD1@Z");
+	uniassert(m_pCLocatorApiUpdatePath, "CLocatorApi::update_path is 0");
 
-	CLocatorApi__path_exists = GetProcAddress(_xrCore_module_address, "?path_exist@CLocatorAPI@@QAE_NPBD@Z");
-	uniassert(CLocatorApi__path_exists, "CLocatorApi::path_exists is 0");
+	m_pCLocatorApiPathExists = GetProcAddress(m_XrCoreModuleAddress, "?path_exist@CLocatorAPI@@QAE_NPBD@Z");
+	uniassert(m_pCLocatorApiPathExists, "CLocatorApi::path_exists is 0");
 
 	//Осторожно! Собака кусается! (тут функция, проверяем значение указателя на нее)
-	Log_fun = (Log_fun_Ptr)GetProcAddress(_xrCore_module_address, "?Msg@@YAXPBDZZ");
-	uniassert(Log_fun, "Log_fun is 0");
+	m_pLogFunction = (LogFuncPtr)GetProcAddress(m_XrCoreModuleAddress, "?Msg@@YAXPBDZZ");
+	uniassert(m_pLogFunction, "m_pLogFunction is 0");
 
 	//По умолчанию, будем использовать эту заглушку, если в потомках не найдется чего-то поприличнее
-	CConsole__GetString = CConsole__GetString_fake;
+	m_pCConsoleGetString = CConsoleGetStringFake;
 
 	/*
 	f : textfile;
@@ -437,44 +436,44 @@ void* FZBaseGameVersion::DoEcxCall_3arg(void* fun, void* obj, const void* arg1, 
 
 void* FZBaseGameVersion::GetLevel()
 {
-	return reinterpret_cast<void*>(*reinterpret_cast<u32*>(_g_ppGameLevel));
+	return reinterpret_cast<void*>(*reinterpret_cast<u32*>(m_pGameLevel));
 }
 
 string FZBaseGameVersion::GetCoreParams()
 {
-	return _core->Params;
+	return m_pCore->Params;
 }
 
 string FZBaseGameVersion::GetCoreApplicationPath()
 {
-	return _core->ApplicationPath;
+	return m_pCore->ApplicationPath;
 }
 
 void FZBaseGameVersion::ExecuteConsoleCommand(const string &cmd)
 {
-	DoEcxCall_1arg(CConsole__Execute, reinterpret_cast<void*>(*_g_ppConsole), cmd.data());
+	DoEcxCall_1arg(m_pCConsoleExecute, reinterpret_cast<void*>(*m_pConsole), cmd.data());
 }
 
 string FZBaseGameVersion::GetEngineExeFileName()
 {
-	return _exe_module_name;
+	return m_ExeModuleName;
 }
 
 void* FZBaseGameVersion::GetEngineExeModuleAddress()
 {
-	return _exe_module_address;
+	return m_ExeModuleAddress;
 }
 
 string FZBaseGameVersion::UpdatePath(const string &root, const string &appendix)
 {
 	string_path path{ '\0' };
-	DoEcxCall_3arg(CLocatorApi__update_path, reinterpret_cast<void*>(*_xr_FS), path, root.data(), appendix.data());
+	DoEcxCall_3arg(m_pCLocatorApiUpdatePath, reinterpret_cast<void*>(*m_pXrFS), path, root.data(), appendix.data());
 	return path;
 }
 
 bool FZBaseGameVersion::PathExists(const string &root)
 {
-	return DoEcxCall_1arg(CLocatorApi__path_exists, reinterpret_cast<void*>(*_xr_FS), root.data());
+	return DoEcxCall_1arg(m_pCLocatorApiPathExists, reinterpret_cast<void*>(*m_pXrFS), root.data());
 }
 
 bool FZBaseGameVersion::CheckForLevelExist()
@@ -498,14 +497,15 @@ void FZBaseGameVersion::Log(const string &txt)
 	//closefile(f);
 	//end;
 
-	Log_fun(txt.c_str());
+	m_pLogFunction(txt.c_str());
 }
 
 string FZBaseGameVersion::GetPlayerName()
 {
 	const char* cmd = "mm_net_player_name";
-	void* res = DoEcxCall_1arg(CConsole__GetString, reinterpret_cast<void*>(*_g_ppConsole), (void*)cmd);
-	return reinterpret_cast<char*>(res);
+	void* res = DoEcxCall_1arg(m_pCConsoleGetString, reinterpret_cast<void*>(*m_pConsole), cmd);
+	string result(reinterpret_cast<char*>(res));
+	return  result;
 }
 
 //
@@ -577,38 +577,38 @@ string FZBaseGameVersion::GetPlayerName()
 
 FZCommonGameVersion::FZCommonGameVersion()
 {
-	_g_ppStringContainer = reinterpret_cast<u32>(GetProcAddress(_xrCore_module_address, "?g_pStringContainer@@3PAVstr_container@@A"));
-	uniassert(_g_ppStringContainer, "StringContainer is 0");
+	m_pStringContainer = reinterpret_cast<u32>(GetProcAddress(m_XrCoreModuleAddress, "?g_pStringContainer@@3PAVstr_container@@A"));
+	uniassert(m_pStringContainer, "StringContainer is 0");
 
-	_g_ppGamePersistent = reinterpret_cast<u32>(GetProcAddress(_exe_module_address, "?g_pGamePersistent@@3PAVIGame_Persistent@@A"));
-	uniassert(_g_ppGamePersistent, "GamePersistent is 0");
+	m_pGamePersistent = reinterpret_cast<u32>(GetProcAddress(m_ExeModuleAddress, "?g_pGamePersistent@@3PAVIGame_Persistent@@A"));
+	uniassert(m_pGamePersistent, "GamePersistent is 0");
 
-	_pDevice = reinterpret_cast<u32>(GetProcAddress(_exe_module_address, "?Device@@3VCRenderDevice@@A"));
-	uniassert(_pDevice, "Device is 0");
+	m_pDevice = reinterpret_cast<u32>(GetProcAddress(m_ExeModuleAddress, "?Device@@3VCRenderDevice@@A"));
+	uniassert(m_pDevice, "Device is 0");
 
-	m_pG_pbRendering = reinterpret_cast<int*>(GetProcAddress(_exe_module_address, "?g_bRendering@@3HA"));
-	uniassert(m_pG_pbRendering, "bRendering is 0");
+	m_pbRendering = reinterpret_cast<int*>(GetProcAddress(m_ExeModuleAddress, "?g_bRendering@@3HA"));
+	uniassert(m_pbRendering, "bRendering is 0");
 
-	xrCriticalSection__Enter = GetProcAddress(_xrCore_module_address, "?Enter@xrCriticalSection@@QAEXXZ");
-	uniassert(xrCriticalSection__Enter, "xrCriticalSection::Enter is 0");
+	m_pXrCriticalSectionEnter = GetProcAddress(m_XrCoreModuleAddress, "?Enter@xrCriticalSection@@QAEXXZ");
+	uniassert(m_pXrCriticalSectionEnter, "xrCriticalSection::Enter is 0");
 
-	xrCriticalSection__Leave = GetProcAddress(_xrCore_module_address, "?Leave@xrCriticalSection@@QAEXXZ");
-	uniassert(xrCriticalSection__Leave, "xrCriticalSection::Leave is 0");
+	m_pXrCriticalSectionLeave = GetProcAddress(m_XrCoreModuleAddress, "?Leave@xrCriticalSection@@QAEXXZ");
+	uniassert(m_pXrCriticalSectionLeave, "xrCriticalSection::Leave is 0");
 
-	str_container__dock = GetProcAddress(_xrCore_module_address, "?dock@str_container@@QAEPAUstr_value@@PBD@Z");
-	uniassert(str_container__dock, "str_container::dock is 0");
+	m_pStrContainerDock = GetProcAddress(m_XrCoreModuleAddress, "?dock@str_container@@QAEPAUstr_value@@PBD@Z");
+	uniassert(m_pStrContainerDock, "str_container::dock is 0");
 
 	//Осторожно! Собака кусается! (тут функция, проверяем значение указателя на нее)
-	thread_spawn = (ThreadSpawnFuncPtr)GetProcAddress(_xrCore_module_address, "?thread_spawn@@YAXP6AXPAX@ZPBDI0@Z");
-	uniassert(thread_spawn, "thread_spawn is 0");
+	m_pThreadSpawnFunc = (ThreadSpawnFuncPtr)GetProcAddress(m_XrCoreModuleAddress, "?m_pThreadSpawnFunc@@YAXP6AXPAX@ZPBDI0@Z");
+	uniassert(m_pThreadSpawnFunc, "m_pThreadSpawnFunc is 0");
 }
 
 // НЕ ТРОГАТЬ! ОПАСНО ДЛЯ ЖИЗНИ!
 void FZCommonGameVersion::SafeExec_start()
 {
-	volatile bool* mt_bMustExit = reinterpret_cast<bool*>(_pDevice + get_CRenderDevice__mt_bMustExit_offset());
-	void* mt_csEnter = reinterpret_cast<void*>(_pDevice + get_CRenderDevice__mt_csEnter_offset());
-	u32* b_is_Active = reinterpret_cast<u32*>(_pDevice + get_CRenderDevice__b_is_Active_offset());
+	volatile bool* mt_bMustExit = reinterpret_cast<bool*>(m_pDevice + get_CRenderDevice__mt_bMustExit_offset());
+	void* mt_csEnter = reinterpret_cast<void*>(m_pDevice + get_CRenderDevice__mt_csEnter_offset());
+	u32* bIsActive = reinterpret_cast<u32*>(m_pDevice + get_CRenderDevice__b_is_Active_offset());
 
 	// Даем cигнал к завершению второго потока
 	*mt_bMustExit = true;
@@ -620,19 +620,19 @@ void FZCommonGameVersion::SafeExec_start()
 	// Теперь мимикрируем под Secondary Thread, захватывая мьютекс, разрешающий
 	// начало его выполнения и сигнализируещий главному потоку об активной работе оного
 	// Он может быть захвачен только во время активности параллельного участка главного потока!
-	DoEcxCall_noarg(xrCriticalSection__Enter, mt_csEnter);
+	DoEcxCall_noarg(m_pXrCriticalSectionEnter, mt_csEnter);
 
 	// Но тут нас ожидает проблема: главный поток сейчас может вовсю исполнять свою работу и
 	// рендерить. Надо заблокировать ему возможность начала рендеринга, а если он после этого
 	// окажется уже занят им - подождать, пока он закончит свои дела.
-	u32 old_active_status = AtomicExchange(b_is_Active, 0);
+	const u32 oldActiveStatus = AtomicExchange(bIsActive, 0);
 
 	// CRenderDevice::b_is_Active, будучи выставлен в false, предотвратит начало рендеринга
 	// Но если рендеринг начался до того, как мы выставили флаг, нам надо подождать его конца
-	while (*m_pG_pbRendering)
+	while (*m_pbRendering)
 		Sleep(1);
 
-	AtomicExchange(b_is_Active, old_active_status);
+	AtomicExchange(bIsActive, oldActiveStatus);
 }
 
 // НЕ ТРОГАТЬ! ОПАСНО ДЛЯ ЖИЗНИ!
@@ -642,7 +642,7 @@ void FZCommonGameVersion::SafeExec_end()
 	ThreadSpawn(reinterpret_cast<void*>(get_SecondaryThreadProcAddress()), 0, get_SecondaryThreadProcName(), 0);
 
 	//Больше не требуется ничего ждать :)
-	DoEcxCall_noarg(xrCriticalSection__Leave, reinterpret_cast<void*>(_pDevice + get_CRenderDevice__mt_csEnter_offset()));
+	DoEcxCall_noarg(m_pXrCriticalSectionLeave, reinterpret_cast<void*>(m_pDevice + get_CRenderDevice__mt_csEnter_offset()));
 
 	//ждать завершения работы итерации главного потока нет необходимости.
 	//Более того, вторичный поток еще может успеть захватить mt_csEnter ;)
@@ -651,20 +651,20 @@ void FZCommonGameVersion::SafeExec_end()
 void FZCommonGameVersion::assign_string(u32 pshared_str, const string &text)
 {
 	uniassert(pshared_str, "pshared_str is nil, cannot assign");
-	void* pnewvalue = DoEcxCall_1arg(str_container__dock, *reinterpret_cast<void**>(_g_ppStringContainer), text.data());
+	void* pNewValue = DoEcxCall_1arg(m_pStrContainerDock, *reinterpret_cast<void**>(m_pStringContainer), text.data());
 
-	if (pnewvalue)
+	if (pNewValue)
 	{
-		u32 newWalCH = reinterpret_cast<u32>(pnewvalue);
+		u32 newWalCH = reinterpret_cast<u32>(pNewValue);
 		u32* dwReference = reinterpret_cast<u32*>(newWalCH + get_str_value__dwReference_offset());
 		*dwReference = *dwReference + 1;
 	}
 
-	u32 poldvalue = *reinterpret_cast<u32*>(pshared_str + get_shared_str__p_offset());
+	u32 pOldValue = *reinterpret_cast<u32*>(pshared_str + get_shared_str__p_offset());
 
-	if (poldvalue)
+	if (pOldValue)
 	{
-		u32* dwReference = reinterpret_cast<u32*>(poldvalue + get_str_value__dwReference_offset());
+		u32* dwReference = reinterpret_cast<u32*>(pOldValue + get_str_value__dwReference_offset());
 		*dwReference = *dwReference - 1;
 
 		if (!*dwReference)
@@ -672,12 +672,12 @@ void FZCommonGameVersion::assign_string(u32 pshared_str, const string &text)
 	}
 
 	void** sharedStrP = reinterpret_cast<void**>(pshared_str + get_shared_str__p_offset());
-	*sharedStrP = pnewvalue;
+	*sharedStrP = pNewValue;
 }
 
 u32 FZCommonGameVersion::GetMainMenu()
 {
-	u32 gamePersistent = *reinterpret_cast<u32*>(_g_ppGamePersistent);
+	u32 gamePersistent = *reinterpret_cast<u32*>(m_pGamePersistent);
 	uniassert(gamePersistent, "gamePersistent not exist");
 	return *reinterpret_cast<u32*>(gamePersistent + get_IGamePersistent__m_pMainMenu_offset());
 }
@@ -839,7 +839,7 @@ void FZCommonGameVersion::SetVisualProgress(float progress)
 
 bool FZCommonGameVersion::ThreadSpawn(void* proc, void* args, const string &name, u32 stack)
 {
-	thread_spawn(proc, name.data(), stack, args);
+	m_pThreadSpawnFunc(proc, name.data(), stack, args);
 	return true;
 }
 
@@ -887,11 +887,11 @@ bool FZCommonGameVersion::IsServerListUpdateActive()
 		return true;
 
 	//Смотрим, не активно ли все еще окно
-	u32 windows_start = *reinterpret_cast<u32*>(mm + get_CMainMenu__m_pMB_ErrDlgs_first_element_ptr_offset());
-	if (!windows_start)
+	u32 windowStart = *reinterpret_cast<u32*>(mm + get_CMainMenu__m_pMB_ErrDlgs_first_element_ptr_offset());
+	if (!windowStart)
 		return false;
 
-	u32 msgwnd = *reinterpret_cast<u32*>(windows_start + sizeof(u32) * get_CMainMenu__ConnectToMasterServer_dlg_id());
+	u32 msgwnd = *reinterpret_cast<u32*>(windowStart + sizeof(u32) * get_CMainMenu__ConnectToMasterServer_dlg_id());
 	if (!msgwnd)
 		return false;
 
@@ -921,174 +921,174 @@ void FZCommonGameVersion::SetActiveErrorDlg(u32 dlg)
 
 FZGameVersion10006::FZGameVersion10006()
 {
-	if (void* addr = GetProcAddress(_exe_module_address, "?GetString@CConsole@@QAEPADPBD@Z"))
-		CConsole__GetString = addr;
+	if (void* addr = GetProcAddress(m_ExeModuleAddress, "?GetString@CConsole@@QAEPADPBD@Z"))
+		m_pCConsoleGetString = addr;
 }
 
 u32 FZGameVersion10006::get_CMainMenu_castto_IMainMenu_offset()
 {
-	return  0;
+	return 0;
 }
 
 u32 FZGameVersion10006::get_IGamePersistent__m_pMainMenu_offset()
 {
-	return  0x468;
+	return 0x468;
 }
 
 u32 FZGameVersion10006::get_CMainMenu__m_startDialog_offset()
 {
-	return  0x50;
+	return 0x50;
 }
 
 u32 FZGameVersion10006::get_CMainMenu__m_sPDProgress__FileName_offset()
 {
-	return  0x284;
+	return 0x284;
 }
 
 u32 FZGameVersion10006::get_CMainMenu__m_sPDProgress__Status_offset()
 {
-	return  0x280;
+	return 0x280;
 }
 
 u32 FZGameVersion10006::get_CMainMenu__m_sPDProgress__IsInProgress_offset()
 {
-	return  0x278;
+	return 0x278;
 }
 
 u32 FZGameVersion10006::get_CMainMenu__m_sPDProgress__Progress_offset()
 {
-	return  0x27C;
+	return 0x27C;
 }
 
 u32 FZGameVersion10006::get_CMainMenu__m_pGameSpyFull_offset()
 {
-	return  0x274;
+	return 0x274;
 }
 
 u32 FZGameVersion10006::get_CMainMenu__m_NeedErrDialog_offset()
 {
-	return  0x288;
+	return 0x288;
 }
 
 u32 FZGameVersion10006::get_CMainMenu__ConnectToMasterServer_dlg_id()
 {
-	return  14;
+	return 14;
 }
 
 // TODO: delete me
 u32 FZGameVersion10006::get_CMainMenu__Message_dlg_id()
 {
-	return  0x10;
+	return 0x10;
 }
 
 u32 FZGameVersion10006::get_CGameSpy_Full__m_pGS_HTTP_offset()
 {
-	return  0x10;
+	return 0x10;
 }
 
 u32 FZGameVersion10006::get_CGameSpy_HTTP__m_LastRequest_offset()
 {
-	return  0x04;
+	return 0x04;
 }
 
 u32 FZGameVersion10006::get_CGameSpy_Full__m_pGS_SB_offset()
 {
-	return  0x14;
+	return 0x14;
 }
 
 u32 FZGameVersion10006::get_CGameSpy_Browser__m_bTryingToConnectToMasterServer_offset()
 {
-	return  0x11;
+	return 0x11;
 }
 
 u32 FZGameVersion10006::get_CGameSpy_Browser__m_bAbleToConnectToMasterServer_offset()
 {
-	return  0x10;
+	return 0x10;
 }
 
 u32 FZGameVersion10006::get_CMainMenu__m_pMB_ErrDlgs_first_element_ptr_offset()
 {
-	return  0x29c;
+	return 0x29c;
 }
 
 u32 FZGameVersion10006::get_CUIMessageBoxEx_to_CUISimpleWindow_m_bShowMe_offset()
 {
-	return  4;
+	return 4;
 }
 
 u32 FZGameVersion10006::get_CRenderDevice__mt_bMustExit_offset()
 {
-	return  0x34c;
+	return 0x34c;
 }
 
 u32 FZGameVersion10006::get_CRenderDevice__mt_csEnter_offset()
 {
-	return  0x344;
+	return 0x344;
 }
 
 u32 FZGameVersion10006::get_CRenderDevice__b_is_Active_offset()
 {
-	return  0x114;
+	return 0x114;
 }
 
 u32 FZGameVersion10006::get_CLevel__m_bConnectResult_offset()
 {
-	return  0x45a1;
+	return 0x45a1;
 }
 
 u32 FZGameVersion10006::get_CLevel__m_bConnectResultReceived_offset()
 {
-	return  0x45a0;
+	return 0x45a0;
 }
 
 u32 FZGameVersion10006::get_CLevel__m_connect_server_err_offset()
 {
-	return  0x4594;
+	return 0x4594;
 }
 
 u32 FZGameVersion10006::get_shared_str__p_offset()
 {
-	return  0;
+	return 0;
 }
 
 u32 FZGameVersion10006::get_str_value__dwReference_offset()
 {
-	return  0;
+	return 0;
 }
 
 u32 FZGameVersion10006::get_str_value__value_offset()
 {
-	return  0xc;
+	return 0xc;
 }
 
 u32 FZGameVersion10006::get_SecondaryThreadProcAddress()
 {
-	return reinterpret_cast<u32>(_exe_module_address) + 0x83450;
+	return reinterpret_cast<u32>(m_ExeModuleAddress) + 0x83450;
 }
 
 char* FZGameVersion10006::get_SecondaryThreadProcName()
 {
-	return reinterpret_cast<char*>(_exe_module_address) + 0xD4D48;
+	return reinterpret_cast<char*>(m_ExeModuleAddress) + 0xD4D48;
 }
 
 u32 FZGameVersion10006::virtual_IMainMenu__Activate_index()
 {
-	return  1;
+	return 1;
 }
 
 u32 FZGameVersion10006::virtual_CUIDialogWnd__Dispatch_index()
 {
-	return  0x2C;
+	return 0x2C;
 }
 
 u32 FZGameVersion10006_v2::get_SecondaryThreadProcAddress()
 {
-	return reinterpret_cast<u32>(_exe_module_address) + 0x836A0;
+	return reinterpret_cast<u32>(m_ExeModuleAddress) + 0x836A0;
 }
 
 char* FZGameVersion10006_v2::get_SecondaryThreadProcName()
 {
-	return reinterpret_cast<char*>(_exe_module_address + 0xD4D78);
+	return reinterpret_cast<char*>(m_ExeModuleAddress + 0xD4D78);
 }
 
 FZ_GAME_VERSION FZGameVersionCreator::GetGameVersion()
@@ -1099,7 +1099,7 @@ FZ_GAME_VERSION FZGameVersionCreator::GetGameVersion()
 	if (!xrGS)
 		return result;
 
-	typedef char* (__cdecl *xrGS_GetGameVersion)(const char* verFromReg);
+	using xrGS_GetGameVersion = char* (__cdecl *)(const char* verFromReg);
 	xrGS_GetGameVersion getVersion = (xrGS_GetGameVersion)GetProcAddress(xrGS, "xrGS_GetGameVersion");
 
 	if (!getVersion)

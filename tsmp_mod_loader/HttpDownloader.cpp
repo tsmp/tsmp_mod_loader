@@ -13,7 +13,7 @@ extern u32 DecompressFile(const string &filename, u32 compressionType);
 //    public
 //        constructor Create;
 //    destructor Destroy; override;
-//    function CreateDownloader(url:string; filename:string; compression_type:cardinal) :FZFileDownloader; override;
+//    function CreateDownloader(url:string; filename:string; compressionType:cardinal) :FZFileDownloader; override;
 //    function StartDownload(dl:FZFileDownloader) : boolean; override;
 //    function ProcessDownloads() : boolean; override;
 //    function CancelDownload(dl:FZFileDownloader) : boolean; override;
@@ -36,49 +36,49 @@ void CreateThreadedFun(void* proc, void* param)
 void DownloaderThreadBody(FZDownloaderThread* th)
 {
 	Msg("- %s DL thread started", TH_LBL);
-	bool need_stop = false;
+	bool needStop = false;
 
-	while (!need_stop)
+	while (!needStop)
 	{
-		th->_ProcessCommands();
-		bool immediate_call = false;
-		th->_lock.lock();
+		th->ProcessCommands();
+		bool immediateCall = false;
+		th->m_RecursiveLock.lock();
 
 		try
 		{
-			for (int i = th->_downloaders.size() - 1; i >= 0; i--)
+			for (int i = th->m_Downloaders.size() - 1; i >= 0; i--)
 			{
-				if (!th->_downloaders[i]->IsDownloading())
+				if (!th->m_Downloaders[i]->IsDownloading())
 				{
-					Msg("- %s Removing from active list DL %s", TH_LBL, th->_downloaders[i]->GetFilename().c_str());
-					th->_downloaders[i]->Release();
-					int last = th->_downloaders.size() - 1;
+					Msg("- %s Removing from active list DL %s", TH_LBL, th->m_Downloaders[i]->GetFilename().c_str());
+					th->m_Downloaders[i]->Release();
+					int last = th->m_Downloaders.size() - 1;
 
 					if (i < last)
-						th->_downloaders[i] = th->_downloaders[last];
+						th->m_Downloaders[i] = th->m_Downloaders[last];
 
-					th->_downloaders.resize(last);
-					Msg("- %s Active downloaders count %u", TH_LBL, th->_downloaders.size());
+					th->m_Downloaders.resize(last);
+					Msg("- %s Active downloaders count %u", TH_LBL, th->m_Downloaders.size());
 				}
 			}
 
-			if (!th->_downloaders.empty())
-				immediate_call = th->ProcessDownloads();
+			if (!th->m_Downloaders.empty())
+				immediateCall = th->ProcessDownloads();
 
-			need_stop = th->_need_terminate && th->_downloaders.empty();
+			needStop = th->m_bNeedTerminate && th->m_Downloaders.empty();
 		}
 		catch (...)
 		{			
 		}
 
-		th->_lock.unlock();
+		th->m_RecursiveLock.unlock();
 
-		if (!immediate_call)
+		if (!immediateCall)
 			Sleep(1);
 	}
 
 	Msg("- %s DL thread finished", TH_LBL);
-	th->_thread_active = false;
+	th->m_bThreadActive = false;
 }
 
 void DownloaderThreadBodyWrapper(void* params)
@@ -156,22 +156,22 @@ void OnDownloadFinished(FZFileDownloader* downloader, FZDownloadResult dlresult)
 //  _multi_handle:=curl_multi_init();
 //  if _multi_handle = nil then begin
 //     FZLogMgr.Get.Write(TH_LBL+'Cannot create multy handle!', FZ_LOG_ERROR);
-//    _good:=false;
+//    m_bGood:=false;
 //  end;
 //end;
 //
 //destructor FZCurlDownloaderThread.Destroy;
 //begin
-//  if _good then begin
+//  if m_bGood then begin
 //    curl_multi_cleanup(_multi_handle);
 //  end;
 //  inherited Destroy;
 //end;
 //
 //function FZCurlDownloaderThread.CreateDownloader(url: string; filename: string;
-//  compression_type: cardinal): FZFileDownloader;
+//  compressionType: cardinal): FZFileDownloader;
 //begin
-//  result:=FZCurlFileDownloader.Create(url, filename, compression_type, self);
+//  result:=FZCurlFileDownloader.Create(url, filename, compressionType, self);
 //end;
 //
 //function CurlWriteCb(ptr:PChar; size:cardinal; nitems:Cardinal; userdata:pointer):cardinal; cdecl;
@@ -205,10 +205,10 @@ void OnDownloadFinished(FZFileDownloader* downloader, FZDownloadResult dlresult)
 //begin
 //  dl.Lock();
 //  try
-//    if not _good then begin
+//    if not m_bGood then begin
 //      FZLogMgr.Get.Write(TH_LBL+'Thread is not in a good state', FZ_LOG_ERROR);
 //      dl.SetRequestId(0);
-//    end else if _FindDownloader(dl)<0 then begin
+//    end else if FindDownloader(dl)<0 then begin
 //      fname:=PAnsiChar(dl.GetFilename());
 //
 //      FZLogMgr.Get.Write(TH_LBL+'Opening file '+fname, FZ_LOG_INFO);
@@ -241,9 +241,9 @@ void OnDownloadFinished(FZFileDownloader* downloader, FZDownloadResult dlresult)
 //      curl_multi_add_handle(_multi_handle, purl);
 //      FZLogMgr.Get.Write(TH_LBL+'Download started for dl '+inttostr(cardinal(dl))+', handle '+inttostr(cardinal(purl)), FZ_LOG_INFO);
 //
-//      dl_i:=length(_downloaders);
-//      setlength(_downloaders, dl_i+1);
-//      _downloaders[dl_i]:=dl;
+//      dl_i:=length(m_Downloaders);
+//      setlength(m_Downloaders, dl_i+1);
+//      m_Downloaders[dl_i]:=dl;
 //      result:=true;
 //    end;
 //  finally
@@ -267,9 +267,9 @@ void OnDownloadFinished(FZFileDownloader* downloader, FZDownloadResult dlresult)
 //    if (msg<>nil) then begin
 //      if (msg.msg = CURLMSG_DONE) then begin
 //        dl:=nil;
-//        for i:=length(_downloaders)-1 downto 0 do begin
-//          if _downloaders[i].GetRequestId() = uintptr(msg.easy_handle) then begin
-//            dl:=_downloaders[i];
+//        for i:=length(m_Downloaders)-1 downto 0 do begin
+//          if m_Downloaders[i].GetRequestId() = uintptr(msg.easy_handle) then begin
+//            dl:=m_Downloaders[i];
 //            break;
 //          end;
 //        end;
@@ -310,7 +310,7 @@ void OnDownloadFinished(FZFileDownloader* downloader, FZDownloadResult dlresult)
 //  code:CURLMcode;
 //begin
 //  result:=false;
-//  dl_i:=_FindDownloader(dl);
+//  dl_i:=FindDownloader(dl);
 //  if dl_i>=0 then begin
 //    try
 //      dl.Lock();
@@ -342,17 +342,17 @@ void OnDownloadFinished(FZFileDownloader* downloader, FZDownloadResult dlresult)
 //{ FZCurlFileDownloader }
 //
 //constructor FZCurlFileDownloader.Create(url: string; filename: string;
-//  compression_type: cardinal; thread: FZDownloaderThread);
+//  compressionType: cardinal; thread: FZDownloaderThread);
 //begin
 //  inherited;
-//  _request := 0;
+//  m_Request := 0;
 //  _file_hndl:=INVALID_HANDLE_VALUE;
 //end;
 //
 //function FZCurlFileDownloader.IsDownloading: boolean;
 //begin
 //  Lock();
-//  result:=(_request<>0);
+//  result:=(m_Request<>0);
 //  Unlock();
 //end;
 //
@@ -365,56 +365,56 @@ void OnDownloadFinished(FZFileDownloader* downloader, FZDownloadResult dlresult)
 //begin
 //  Lock();
 //  if _file_hndl<>INVALID_HANDLE_VALUE then begin
-//    FZLogMgr.Get.Write(DL_LBL+'Flushing file '+_filename+' ('+inttostr(_file_hndl)+')', FZ_LOG_INFO);
+//    FZLogMgr.Get.Write(DL_LBL+'Flushing file '+m_FileName+' ('+inttostr(_file_hndl)+')', FZ_LOG_INFO);
 //    FlushFileBuffers(_file_hndl);
 //  end;
 //  Unlock();
 //end;
 
-FZGameSpyFileDownloader::FZGameSpyFileDownloader(string url, string filename, u32 compression_type, FZDownloaderThread* thread) :
-	FZFileDownloader(url, filename, compression_type, thread)
+FZGameSpyFileDownloader::FZGameSpyFileDownloader(string url, string filename, u32 compressionType, FZDownloaderThread* thread) :
+	FZFileDownloader(url, filename, compressionType, thread)
 {
-	_request = GHTTPRequestError;
+	m_Request = GHTTPRequestError;
 }
 
 FZGameSpyFileDownloader::~FZGameSpyFileDownloader()
 {
-	Msg("- %s Wait for DL finished for %s", DL_LBL, _filename.c_str());
+	Msg("- %s Wait for DL finished for %s", DL_LBL, m_FileName.c_str());
 
 	while (IsBusy())
 		Sleep(100);
 
-	Msg("- %s Destroying downloader for %s", DL_LBL, _filename.c_str());
+	Msg("- %s Destroying downloader for %s", DL_LBL, m_FileName.c_str());
 }
 
 bool FZGameSpyFileDownloader::IsDownloading()
 {
 	Lock();
-	bool res = _request != GHTTPRequestError;
+	bool res = m_Request != GHTTPRequestError;
 	Unlock();
 	return res;
 }
 
 void FZGameSpyFileDownloader::Flush()
 {
-	Msg("- %s Flush request for %s", DL_LBL, _filename.c_str());
+	Msg("- %s Flush request for %s", DL_LBL, m_FileName.c_str());
 }
 
 FZGameSpyDownloaderThread::FZGameSpyDownloaderThread()
 {
-	_dll_handle = LoadLibrary("xrGameSpy.dll");
-	_xrGS_ghttpStartup = reinterpret_cast<gHttpStartupFuncPtr>(GetProcAddress(_dll_handle, "xrGS_ghttpStartup"));
-	_xrGS_ghttpCleanup = reinterpret_cast<gHttpCleanupFuncPtr>(GetProcAddress(_dll_handle, "xrGS_ghttpCleanup"));
-	_xrGS_ghttpThink = reinterpret_cast<gHttpThinkFuncPtr>(GetProcAddress(_dll_handle, "xrGS_ghttpThink"));
-	_xrGS_ghttpSave = reinterpret_cast<gHttpSaveFuncPtr>(GetProcAddress(_dll_handle, "xrGS_ghttpSave"));
-	_xrGS_ghttpSaveEx = reinterpret_cast<gHttpSaveExFuncPtr>(GetProcAddress(_dll_handle, "xrGS_ghttpSaveEx"));
-	_xrGS_ghttpCancelRequest = reinterpret_cast<gHttpCancelReqFuncPtr>(GetProcAddress(_dll_handle, "xrGS_ghttpCancelRequest"));
+	m_hDll = LoadLibrary("xrGameSpy.dll");
+	m_pXrGsGHttpStartup = reinterpret_cast<gHttpStartupFuncPtr>(GetProcAddress(m_hDll, "xrGS_ghttpStartup"));
+	m_pXrGsGHttpCleanup = reinterpret_cast<gHttpCleanupFuncPtr>(GetProcAddress(m_hDll, "xrGS_ghttpCleanup"));
+	m_pXrGsGHttpThink = reinterpret_cast<gHttpThinkFuncPtr>(GetProcAddress(m_hDll, "xrGS_ghttpThink"));
+	m_pXrGsGHttpSave = reinterpret_cast<gHttpSaveFuncPtr>(GetProcAddress(m_hDll, "xrGS_ghttpSave"));
+	m_pXrGsGHttpSaveEx = reinterpret_cast<gHttpSaveExFuncPtr>(GetProcAddress(m_hDll, "xrGS_ghttpSaveEx"));
+	m_pXrGsGHttpCancelRequest = reinterpret_cast<gHttpCancelReqFuncPtr>(GetProcAddress(m_hDll, "xrGS_ghttpCancelRequest"));
 
-	if (_xrGS_ghttpStartup && _xrGS_ghttpCleanup && _xrGS_ghttpThink && _xrGS_ghttpSave && _xrGS_ghttpSaveEx && _xrGS_ghttpCancelRequest)
-		_xrGS_ghttpStartup();
+	if (m_pXrGsGHttpStartup && m_pXrGsGHttpCleanup && m_pXrGsGHttpThink && m_pXrGsGHttpSave && m_pXrGsGHttpSaveEx && m_pXrGsGHttpCancelRequest)
+		m_pXrGsGHttpStartup();
 	else
 	{
-		_good = false;
+		m_bGood = false;
 		Msg("! %s Downloader thread in a bad state!", TH_LBL);
 	}
 }
@@ -422,19 +422,19 @@ FZGameSpyDownloaderThread::FZGameSpyDownloaderThread()
 FZGameSpyDownloaderThread::~FZGameSpyDownloaderThread()
 {
 	Msg("- %s Destroying GS downloader thread", TH_LBL);
-	_lock.lock();
+	m_RecursiveLock.lock();
 
-	_need_terminate = true;
-	_lock.unlock();
-	_WaitForThreadTermination();
+	m_bNeedTerminate = true;
+	m_RecursiveLock.unlock();
+	WaitForThreadTermination();
 
-	if (_good)
+	if (m_bGood)
 	{
 		Msg("- %s Turn off GS service", TH_LBL);
-		_xrGS_ghttpCleanup();
+		m_pXrGsGHttpCleanup();
 	}
 
-	FreeLibrary(_dll_handle);
+	FreeLibrary(m_hDll);
 }
 
 void __cdecl OnGameSpyDownloadInProgress(u32 request, u32 state, char* buffer, u32 bufferLen_low, u32 bufferLen_high,
@@ -467,9 +467,9 @@ u32 __cdecl OnGamespyDownloadFinished(u32 request, u32 requestResult, char* buff
 	return 1;
 }
 
-FZFileDownloader* FZGameSpyDownloaderThread::CreateDownloader(const string &url, const string &filename, u32 compression_type)
+FZFileDownloader* FZGameSpyDownloaderThread::CreateDownloader(const string &url, const string &filename, u32 compressionType)
 {
-	return new FZGameSpyFileDownloader(url, filename, compression_type, this);
+	return new FZGameSpyFileDownloader(url, filename, compressionType, this);
 }
 
 bool FZGameSpyDownloaderThread::StartDownload(FZFileDownloader* dl)
@@ -481,20 +481,20 @@ bool FZGameSpyDownloaderThread::StartDownload(FZFileDownloader* dl)
 
 	try
 	{
-		if (!_good)
+		if (!m_bGood)
 		{
 			Msg("! %s Thread is not in a good state", TH_LBL);
 			dl->SetRequestId(GHTTPRequestError);
 		}
-		else if (_FindDownloader(dl) < 0)
+		else if (FindDownloader(dl) < 0)
 		{
-			u32 request = _xrGS_ghttpSaveEx(dl->GetUrl().c_str(), dl->GetFilename().c_str(), nullptr, nullptr, 0, 0, progresscb, finishcb, dl);
+			u32 request = m_pXrGsGHttpSaveEx(dl->GetUrl().c_str(), dl->GetFilename().c_str(), nullptr, nullptr, 0, 0, progresscb, finishcb, dl);
 
 			if (request != GHTTPRequestError)
 			{
 				Msg("- %s Download started, request %u", TH_LBL, request);
-				int dl_i = _downloaders.size();
-				_downloaders.push_back(dl);
+				int dl_i = m_Downloaders.size();
+				m_Downloaders.push_back(dl);
 				res = true;
 			}
 			else
@@ -513,19 +513,19 @@ bool FZGameSpyDownloaderThread::StartDownload(FZFileDownloader* dl)
 
 bool FZGameSpyDownloaderThread::ProcessDownloads()
 {
-	_xrGS_ghttpThink();
+	m_pXrGsGHttpThink();
 	return false; //Don't call immediately
 }
 
 bool FZGameSpyDownloaderThread::CancelDownload(FZFileDownloader* dl)
 {
 	bool result = false;
-	int dl_i = _FindDownloader(dl);
+	int dlIt = FindDownloader(dl);
 
-	if (dl_i >= 0)
+	if (dlIt >= 0)
 	{
 		dl->Lock();
-		u32 request = dl->GetRequestId();
+		const u32 request = dl->GetRequestId();
 
 		//Несмотря на то, что пока очередь не очищена, удаления не произойдет - все равно защитим от этого на всякий
 		dl->Acquire();
@@ -536,7 +536,7 @@ bool FZGameSpyDownloaderThread::CancelDownload(FZFileDownloader* dl)
 		if (request != GHTTPRequestError)
 		{
 			Msg("- %s Cancelling request %u", TH_LBL, request);
-			_xrGS_ghttpCancelRequest(request);
+			m_pXrGsGHttpCancelRequest(request);
 
 			//Автоматически не вызывается при отмене - приходится вручную
 			OnGamespyDownloadFinished(GHTTPRequestError, GHTTPRequestError, nullptr, 0, 0, dl);
@@ -553,8 +553,8 @@ bool FZGameSpyDownloaderThread::CancelDownload(FZFileDownloader* dl)
 
 FZDownloaderThreadInfoQueue::FZDownloaderThreadInfoQueue()
 {
-	_queue.clear();
-	_cur_items_cnt = 0;
+	m_Queue.clear();
+	m_CurItemsCnt = 0;
 }
 
 FZDownloaderThreadInfoQueue::~FZDownloaderThreadInfoQueue()
@@ -568,10 +568,10 @@ bool FZDownloaderThreadInfoQueue::Add(FZDownloaderThreadCmd* item)
 	item->downloader->Lock();
 
 	Msg("- %s Put command %u into DL queue for %s", QUEUE_LBL, item->cmd, item->downloader->GetFilename().c_str());
-	_queue.push_back(item);
-	_cur_items_cnt++;
+	m_Queue.push_back(item);
+	m_CurItemsCnt++;
 
-	Msg("- %s Command in queue, count=%u", QUEUE_LBL, _cur_items_cnt);
+	Msg("- %s Command in queue, count=%u", QUEUE_LBL, m_CurItemsCnt);
 	item->downloader->Unlock();
 	return true;
 }
@@ -580,53 +580,53 @@ void FZDownloaderThreadInfoQueue::Flush()
 {
 	Msg("- %s Flush commands", QUEUE_LBL);
 
-	for (auto cmd : _queue)
+	for (auto cmd : m_Queue)
 		cmd->downloader->Release();
 
-	_queue.clear();
-	_cur_items_cnt = 0;
+	m_Queue.clear();
+	m_CurItemsCnt = 0;
 }
 
-int FZDownloaderThreadInfoQueue::Count()
+u32 FZDownloaderThreadInfoQueue::Count() const
 {
-	return _cur_items_cnt;
+	return m_CurItemsCnt;
 }
 
 FZDownloaderThreadCmd* FZDownloaderThreadInfoQueue::Get(int i)
 {
 	if (i >= Count())
 		Msg("! %s Invalid item index", QUEUE_LBL);
-	return _queue[i];
+	return m_Queue[i];
 }
 
-FZFileDownloader::FZFileDownloader(const string &url, const string &filename, u32 compression_type, FZDownloaderThread* thread)
+FZFileDownloader::FZFileDownloader(const string &url, const string &filename, u32 compressionType, FZDownloaderThread* thread)
 {
-	_url = url;
-	_filename = filename;
-	_filesize = 0;
-	_compression_type = compression_type;
-	_downloaded_bytes = 0;
-	_status = DOWNLOAD_SUCCESS;
-	_acquires_count = 0;
-	_thread = thread;
-	Msg("- %s Created downloader for %s from %s, compression %u", DL_LBL, _filename.c_str(), url.c_str(), _compression_type);
+	m_Url = url;
+	m_FileName = filename;
+	m_FileSize = 0;
+	m_CompressionType = compressionType;
+	m_DownloadedBytes = 0;
+	m_Status = DOWNLOAD_SUCCESS;
+	m_AcquiresCount = 0;
+	m_pThread = thread;
+	Msg("- %s Created downloader for %s from %s, compression %u", DL_LBL, m_FileName.c_str(), url.c_str(), m_CompressionType);
 }
 
 FZFileDownloader::~FZFileDownloader()
 {
 	// moved to parent
-	//Msg("- %s Wait for DL finished for %s", DL_LBL, _filename.c_str());
+	//Msg("- %s Wait for DL finished for %s", DL_LBL, m_FileName.c_str());
 
 	//while (IsBusy())
 	//	Sleep(100);
 
-	//Msg("- %s Destroying downloader for %s", DL_LBL, _filename.c_str());
+	//Msg("- %s Destroying downloader for %s", DL_LBL, m_FileName.c_str());
 }
 
 bool FZFileDownloader::IsBusy()
 {
 	Lock();
-	bool res = _acquires_count > 0 || IsDownloading();
+	const bool res = m_AcquiresCount > 0 || IsDownloading();
 	Unlock();
 	return res;
 }
@@ -634,7 +634,7 @@ bool FZFileDownloader::IsBusy()
 string FZFileDownloader::GetUrl()
 {
 	Lock();
-	string res = _url;
+	const string res = m_Url;
 	Unlock();
 	return res;
 }
@@ -642,7 +642,7 @@ string FZFileDownloader::GetUrl()
 string FZFileDownloader::GetFilename()
 {
 	Lock();
-	string res = _filename;
+	const string res = m_FileName;
 	Unlock();
 	return res;
 }
@@ -650,7 +650,7 @@ string FZFileDownloader::GetFilename()
 u32 FZFileDownloader::GetCompressionType()
 {
 	Lock();
-	u32 res = _compression_type;
+	const u32 res = m_CompressionType;
 	Unlock();
 	return res;
 }
@@ -662,20 +662,20 @@ bool FZFileDownloader::StartAsyncDownload()
 
 	if (IsBusy())
 	{
-		Msg("- %s Downloader is busy - cannot start async DL of %s", DL_LBL, _filename.c_str());
+		Msg("- %s Downloader is busy - cannot start async DL of %s", DL_LBL, m_FileName.c_str());
 		Unlock();
 		return false;
 	}
 
-	Msg("- %s Start async DL of %s", DL_LBL, _filename.c_str());
+	Msg("- %s Start async DL of %s", DL_LBL, m_FileName.c_str());
 	Acquire(); //вызов показывает, что даунлоадер приписан к треду, тред зарелизит его перед удалением из списка
 
 	try
 	{
-		FZDownloaderThreadCmd* info = new FZDownloaderThreadCmd();
+		auto info = new FZDownloaderThreadCmd();
 		info->downloader = this;
 		info->cmd = FZDownloaderAdd;
-		result = _thread->AddCommand(info);
+		result = m_pThread->AddCommand(info);
 	}
 	catch (...)
 	{
@@ -692,24 +692,24 @@ bool FZFileDownloader::StartAsyncDownload()
 
 bool FZFileDownloader::StartSyncDownload()
 {
-	Msg("- %s Start sync DL of %s", DL_LBL, _filename.c_str());
+	Msg("- %s Start sync DL of %s", DL_LBL, m_FileName.c_str());
 
 	if (StartAsyncDownload())
 	{
-		Msg("- %s Waiting for DL finished %s", DL_LBL, _filename.c_str());
+		Msg("- %s Waiting for DL finished %s", DL_LBL, m_FileName.c_str());
 		while (IsBusy())
 			Sleep(100);
 
 		return IsSuccessful();
 	}
-	else
-		return false;
+
+	return false;
 }
 
 u32 FZFileDownloader::DownloadedBytes()
 {
 	Lock();
-	u32 result = _downloaded_bytes;
+	const u32 result = m_DownloadedBytes;
 	Unlock();
 	return result;
 }
@@ -717,7 +717,7 @@ u32 FZFileDownloader::DownloadedBytes()
 bool FZFileDownloader::IsSuccessful()
 {
 	Lock();
-	bool result = _status == DOWNLOAD_SUCCESS;
+	const bool result = m_Status == DOWNLOAD_SUCCESS;
 	Unlock();
 	return result;
 }
@@ -726,14 +726,14 @@ bool FZFileDownloader::RequestStop()
 {
 	Lock();
 
-	Msg("- %s RequestStop for downloader %s, req = %u", DL_LBL, GetFilename().c_str(), _request);
+	Msg("- %s RequestStop for downloader %s, req = %u", DL_LBL, GetFilename().c_str(), m_Request);
 	Acquire(); //To avoid removing before command is sent
 
-	FZDownloaderThreadCmd* info = new FZDownloaderThreadCmd();
+	auto info = new FZDownloaderThreadCmd();
 	info->downloader = this;
 	info->cmd = FZDownloaderStop;
 	Unlock(); //Unlock to avoid deadlock between downloader's and thread's mutexes
-	bool res = _thread->AddCommand(info);
+	const bool res = m_pThread->AddCommand(info);
 	Release();
 	return res;
 }
@@ -742,72 +742,70 @@ void FZFileDownloader::SetRequestId(u32 id)
 {
 	Lock();
 	Msg("- %s Set request id=%u for %s", DL_LBL, id, GetFilename().c_str());
-	_request = id;
+	m_Request = id;
 	Unlock();
 }
 
 u32 FZFileDownloader::GetRequestId()
 {
 	Lock();
-	u32 result = _request;
+	const u32 result = m_Request;
 	Unlock();
 	return result;
 }
 
 void FZFileDownloader::Acquire()
 {
-	u32 i = InterlockedIncrement(&_acquires_count);
+	const u32 i = InterlockedIncrement(&m_AcquiresCount);
 	Msg("- %s Downloader acquired (cnt=%u) %s", DL_LBL, i, GetFilename().c_str());
 }
 
 void FZFileDownloader::Release()
 {
-	string name = GetFilename();
-	u32 i = InterlockedDecrement(&_acquires_count);
+	const string name = GetFilename();
+	const u32 i = InterlockedDecrement(&m_AcquiresCount);
 	Msg("- %s Downloader released (cnt=%u) %s", DL_LBL, i, name.c_str());
 }
 
 void FZFileDownloader::Lock()
 {
-	_lock.lock();
+	m_Lock.lock();
 }
 
 void FZFileDownloader::Unlock()
 {
-	_lock.unlock();
+	m_Lock.unlock();
 }
 
 void FZFileDownloader::SetStatus(FZDownloadResult status)
 {
 	Lock();
-	_status = status;
+	m_Status = status;
 	Unlock();
 }
 
 void FZFileDownloader::SetFileSize(u32 filesize)
 {
 	Lock();
-	_filesize = filesize;
+	m_FileSize = filesize;
 	Unlock();
 }
 
 void FZFileDownloader::SetDownloadedBytesCount(u32 count)
 {
 	Lock();
-	_downloaded_bytes = count;
+	m_DownloadedBytes = count;
 	Unlock();
 }
 
 FZDownloaderThread::FZDownloaderThread()
 {
-	_commands_queue = new FZDownloaderThreadInfoQueue();
-
-	_need_terminate = false;
-	_thread_active = false;
-	_good = true;
+	m_CommandsQueue = new FZDownloaderThreadInfoQueue();
+	m_bNeedTerminate = false;
+	m_bGood = true;
 
 	Msg("- %s Creating downloader thread fun", TH_LBL);
-	_thread_active = true;
+	m_bThreadActive = true;
 	CreateThreadedFun(DownloaderThreadBodyWrapper, this);
 }
 
@@ -816,52 +814,52 @@ FZDownloaderThread::~FZDownloaderThread()
 	Msg("- %s Destroying base downloader thread", TH_LBL);
 
 	//Make sure that thread is terminated
-	_lock.lock();
-	_need_terminate = true;
-	_lock.unlock();
+	m_RecursiveLock.lock();
+	m_bNeedTerminate = true;
+	m_RecursiveLock.unlock();
 
-	_WaitForThreadTermination();
-	delete _commands_queue;
+	WaitForThreadTermination();
+	delete m_CommandsQueue;
 }
 
 bool FZDownloaderThread::AddCommand(FZDownloaderThreadCmd* cmd)
 {
 	bool res = false;
-	std::lock_guard<std::recursive_mutex> guard(_lock);
+	std::lock_guard guard(m_RecursiveLock);
 
 	try
 	{
-		if (!_good)
+		if (!m_bGood)
 			return res;
 
-		res = _commands_queue->Add(cmd);
+		res = m_CommandsQueue->Add(cmd);
 	}
 	catch (...) {}
 
 	return res;
 }
 
-void FZDownloaderThread::_WaitForThreadTermination()
+void FZDownloaderThread::WaitForThreadTermination()
 {
 	bool active = true;
 	Msg("- %s Waiting for DL thread termination", TH_LBL);
 
 	while (active)
 	{
-		_lock.lock();
-		active = _thread_active;
-		_lock.unlock();
+		m_RecursiveLock.lock();
+		active = m_bThreadActive;
+		m_RecursiveLock.unlock();
 	}
 }
 
-int FZDownloaderThread::_FindDownloader(FZFileDownloader* dl)
+int FZDownloaderThread::FindDownloader(FZFileDownloader* dl)
 {
 	int result = -1;
-	std::lock_guard<std::recursive_mutex> guard(_lock);
+	std::lock_guard guard(m_RecursiveLock);
 
-	for (int i = _downloaders.size() - 1; i > 0; i--)
+	for (u32 i = m_Downloaders.size() - 1; i > 0; i--)
 	{
-		if (dl == _downloaders[i])
+		if (dl == m_Downloaders[i])
 		{
 			result = i;
 			break;
@@ -871,42 +869,38 @@ int FZDownloaderThread::_FindDownloader(FZFileDownloader* dl)
 	return result;
 }
 
-void FZDownloaderThread::_ProcessCommands()
+void FZDownloaderThread::ProcessCommands()
 {
-	std::lock_guard<std::recursive_mutex> guard(_lock);
+	std::lock_guard<std::recursive_mutex> guard(m_RecursiveLock);
 
-	if (int queue_cnt = _commands_queue->Count())
+	if (u32 queue_cnt = m_CommandsQueue->Count())
 	{
 		Msg("- %s Start processing commands (%u)", TH_LBL, queue_cnt);
 
-		for (int i = 0; i < queue_cnt; i++)
+		for (u32 i = 0; i < queue_cnt; i++)
 		{
-			FZDownloaderThreadCmd* command = _commands_queue->Get(i);
+			FZDownloaderThreadCmd* command = m_CommandsQueue->Get(i);
 
 			switch (command->cmd)
 			{
-			case FZDownloaderAdd:
-			{
+			case FZDownloaderAdd:			
 				Msg("- %s Command \"Add\" for downloader %s", TH_LBL, command->downloader->GetFilename().c_str());
 				StartDownload(command->downloader);
-			}
-			break;
+				break;
 
-			case FZDownloaderStop:
-			{
+			case FZDownloaderStop:			
 				Msg("- %s Command \"Stop\" for downloader %s", TH_LBL, command->downloader->GetFilename().c_str());
 				CancelDownload(command->downloader);
-			}
-			break;
+				break;
 
 			default:
 				Msg("! %s Unknown command!", TH_LBL);
 			}
 
-			Msg("- %s Command processed, active downloaders count %u", TH_LBL, _downloaders.size());
+			Msg("- %s Command processed, active downloaders count %u", TH_LBL, m_Downloaders.size());
 		}
 
-		_commands_queue->Flush();
+		m_CommandsQueue->Flush();
 		Msg("- %s Processing commands finished", TH_LBL);
 	}
 }

@@ -96,35 +96,28 @@ std::mutex DecompressLock;
 
 u32 DecompressCabFile(const string &filename)
 {
-	string tmpname;
-	string cmd;
-	STARTUPINFO si;
-	PROCESS_INFORMATION pi;
-	DWORD exitcode;
-	HANDLE file_handle;
-
-	u32 retryCount, retryCount2;
-
-	std::lock_guard<std::mutex> guard(DecompressLock);
+	std::lock_guard guard(DecompressLock);
 
 	u32 result = 0;
-	tmpname = filename + ".tmp";
+	const string tmpName = filename + ".tmp";
 
 	Msg("- Trying to unpack %s", filename.c_str());
 
-	retryCount = 3;
+	u32 retryCount = 3;
 
 	while (retryCount)
 	{
 		//#ifdef LOG_UNPACKING 
 		//	cmd = "cmd.exe /C EXPAND " + filename + " " + tmpname + " > " + filename + '_' + inttostr(retryCount) + '.log';
 		//#else
-		cmd = "EXPAND \"" + filename + "\" \"" + tmpname + "\"";
+		string cmd = "EXPAND \"" + filename + "\" \"" + tmpName + "\"";
 		//#endif
 
 		retryCount--;
-
 		Msg("Running command %s", cmd.c_str());
+
+		STARTUPINFO si;
+		PROCESS_INFORMATION pi;
 
 		FillMemory(&si, sizeof(si), 0);
 		FillMemory(&pi, sizeof(pi), 0);
@@ -137,20 +130,20 @@ u32 DecompressCabFile(const string &filename)
 		}
 
 		WaitForSingleObject(pi.hProcess, INFINITE);
-		exitcode = 0;
+		DWORD exitCode = 0;
 
-		if (GetExitCodeProcess(pi.hProcess, &exitcode) && exitcode != STILL_ACTIVE)
+		if (GetExitCodeProcess(pi.hProcess, &exitCode) && exitCode != STILL_ACTIVE)
 		{
-			retryCount2 = 3;
+			u32 retryCount2 = 3;
 
 			while (retryCount2)
 			{
-				file_handle = CreateFile(tmpname.c_str(), GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
-				if (file_handle != INVALID_HANDLE_VALUE)
+				HANDLE fileHandle = CreateFile(tmpName.c_str(), GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
+				if (fileHandle != INVALID_HANDLE_VALUE)
 				{
-					result = GetFileSize(file_handle, 0);
+					result = GetFileSize(fileHandle, 0);
 					Msg("- Unpacked file size is %u", result);
-					CloseHandle(file_handle);
+					CloseHandle(fileHandle);
 
 					//Заканчиваем попытки распаковки
 					retryCount = 0;
@@ -158,14 +151,14 @@ u32 DecompressCabFile(const string &filename)
 				}
 				else
 				{
-					Msg("! ERROR: cannot open file %s", tmpname.c_str());
+					Msg("! ERROR: cannot open file %s", tmpName.c_str());
 					Sleep(1000);
 					retryCount2--;
 				}
 			}
 		}
 		else
-			Msg("! ERROR: process exitcode is %u", exitcode);
+			Msg("! ERROR: process exitcode is %u", exitCode);
 
 		CloseHandle(pi.hProcess);
 		CloseHandle(pi.hThread);
@@ -174,9 +167,9 @@ u32 DecompressCabFile(const string &filename)
 			Sleep(5000);
 	}
 
-	if (!MoveFileEx(tmpname.c_str(), filename.c_str(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH))
+	if (!MoveFileEx(tmpName.c_str(), filename.c_str(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH))
 	{
-		Msg("! ERROR: Cant move %s to %s", filename.c_str(), tmpname.c_str());
+		Msg("! ERROR: Cant move %s to %s", filename.c_str(), tmpName.c_str());
 		result = 0;
 	}
 
@@ -189,13 +182,13 @@ u32 DecompressFile(const string &filename, u32 compressionType)
 	{
 	case 0:
 	{
-		HANDLE file_handle = CreateFile(filename.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
+		HANDLE fileHandle = CreateFile(filename.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
 		u32 result = 0;
 
-		if (file_handle != INVALID_HANDLE_VALUE)
+		if (fileHandle != INVALID_HANDLE_VALUE)
 		{
-			result = GetFileSize(file_handle, nullptr);
-			CloseHandle(file_handle);
+			result = GetFileSize(fileHandle, nullptr);
+			CloseHandle(fileHandle);
 		}
 
 		return result;

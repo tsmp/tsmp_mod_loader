@@ -28,7 +28,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD, LPVOID)
 	return TRUE;
 }
 
-bool ThreadBody_internal()
+bool ThreadBodyInternal()
 {
 	//Убедимся, что нам разрешено выделить ресурсы
 	const HANDLE mutex = CreateMutex(nullptr, FALSE, FzLoaderModulesMutexName);
@@ -91,7 +91,7 @@ u32 ThreadBody()
 {
 	__asm
 	{
-		call ThreadBody_internal
+		call ThreadBodyInternal
 
 		push[g_hDll]
 		push eax
@@ -189,7 +189,7 @@ bool ValidateInput(const char* modName, const char* modParams)
 	return true;
 }
 
-FZDllModFunResult ModLoad_internal(const char* modName, const char* modParams)
+FZDllModFunResult ModLoadInternal(const char* modName, const char* modParams)
 {
 	FZDllModFunResult result = FZ_DLL_MOD_FUN_FAILURE;
 	const HANDLE mutex = CreateMutex(nullptr, FALSE, FzLoaderModulesMutexName);
@@ -276,7 +276,7 @@ extern "C" __declspec(dllexport) u32 __stdcall ModLoad(char* modName, char* modP
 		g_hFzLoaderSemaphore = semaphore;
 		g_hDll = nullptr;
 
-		result = ModLoad_internal(modName, modParams);
+		result = ModLoadInternal(modName, modParams);
 
 		// В случае успеха семафор будет разлочен в другом треде после окончания загрузки.
 		if (result == FZ_DLL_MOD_FUN_FAILURE && g_hDll)
