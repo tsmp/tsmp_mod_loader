@@ -75,7 +75,7 @@ public:
 	virtual ~FZFiles();
 
 	void Clear();                                                                                          //полная очистка данных списка
-	void Dump(/*FZLogMessageSeverity  severity : = FZ_LOG_INFO*/);                                                  //вывод текущего состояния списка, отладочная опция
+	void Dump() const;                                                  //вывод текущего состояния списка, отладочная опция
 	bool ScanPath(string dirPath);                                                                 //построение списка файлов в указанной директории и ее поддиректориях для последующей актуализации
 	bool UpdateFileInfo(string filename, const string &url, u32 compressionType, const FZCheckParams &targetParams);      //обновить сведения о целевых параметрах файла
 	bool ActualizeFiles();                                                                          //актуализировать игровые данные
@@ -83,7 +83,7 @@ public:
 	bool AddIgnoredFile(const string &filename);                                                           //добавить игнорируемый файл; вызывать после того, как все UpdateFileInfo выполнены
 	void SetCallback(FZFileActualizingCallback cb, void* userdata);                                      //добавить колбэк на обновление состояния синхронизации
 
-	int EntriesCount();                                                                            //число записей о синхронизируемых файлах
+	u32 EntriesCount() const;                                                                            //число записей о синхронизируемых файлах
 	pFZFileItemData GetEntry(u32 i);                                                               //получить копию информации об указанном файле
 	void DeleteEntry(u32 i);                                                                          //удалить запись об синхронизации
 	void UpdateEntryAction(u32 i, FZFileItemAction action);                                          //обновить действие для файла

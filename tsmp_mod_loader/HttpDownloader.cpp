@@ -52,7 +52,7 @@ void DownloaderThreadBody(FZDownloaderThread* th)
 				{
 					Msg("- %s Removing from active list DL %s", TH_LBL, th->m_Downloaders[i]->GetFilename().c_str());
 					th->m_Downloaders[i]->Release();
-					int last = th->m_Downloaders.size() - 1;
+					const int last = th->m_Downloaders.size() - 1;
 
 					if (i < last)
 						th->m_Downloaders[i] = th->m_Downloaders[last];
@@ -90,7 +90,7 @@ void DownloaderThreadBodyWrapper(void* params)
 	//	call DownloaderThreadBody
 	//	popad
 	//}
-	DownloaderThreadBody(reinterpret_cast<FZDownloaderThread*>(params));
+	DownloaderThreadBody(static_cast<FZDownloaderThread*>(params));
 }
 
 void UnpackerThreadBody(FZFileDownloader* downloader)
@@ -99,7 +99,7 @@ void UnpackerThreadBody(FZFileDownloader* downloader)
 
 	if (downloader->GetCompressionType())
 	{
-		if (u32 size = DecompressFile(downloader->GetFilename(), downloader->GetCompressionType()))
+		if (const u32 size = DecompressFile(downloader->GetFilename(), downloader->GetCompressionType()))
 		{
 			downloader->SetFileSize(size);
 			downloader->SetDownloadedBytesCount(size);
@@ -121,7 +121,7 @@ void UnpackerThreadBodyWrapper(void* params)
 	//	call UnpackerThreadBody
 	//	popad
 	//}
-	UnpackerThreadBody(reinterpret_cast<FZFileDownloader*>(params));
+	UnpackerThreadBody(static_cast<FZFileDownloader*>(params));
 }
 
 void OnDownloadInProgress(FZFileDownloader* downloader, u32 filesize, u32 downloaded)
@@ -371,7 +371,7 @@ void OnDownloadFinished(FZFileDownloader* downloader, FZDownloadResult dlresult)
 //  Unlock();
 //end;
 
-FZGameSpyFileDownloader::FZGameSpyFileDownloader(string url, string filename, u32 compressionType, FZDownloaderThread* thread) :
+FZGameSpyFileDownloader::FZGameSpyFileDownloader(const string &url, const string &filename, u32 compressionType, FZDownloaderThread* thread) :
 	FZFileDownloader(url, filename, compressionType, thread)
 {
 	m_Request = GHTTPRequestError;
@@ -390,7 +390,7 @@ FZGameSpyFileDownloader::~FZGameSpyFileDownloader()
 bool FZGameSpyFileDownloader::IsDownloading()
 {
 	Lock();
-	bool res = m_Request != GHTTPRequestError;
+	const bool res = m_Request != GHTTPRequestError;
 	Unlock();
 	return res;
 }
@@ -438,15 +438,15 @@ FZGameSpyDownloaderThread::~FZGameSpyDownloaderThread()
 }
 
 void __cdecl OnGameSpyDownloadInProgress(u32 request, u32 state, char* buffer, u32 bufferLen_low, u32 bufferLen_high,
-	u32 bytesReceived_low, u32 bytesReceived_high, u32 totalSize_low, u32 totalSize_high, void* param)
+	u32 bytesReceivedLow, u32 bytesReceived_high, u32 totalSizeLow, u32 totalSize_high, void* param)
 {
-	FZFileDownloader* downloader = reinterpret_cast<FZFileDownloader*>(param);
-	OnDownloadInProgress(downloader, totalSize_low, bytesReceived_low);
+	const auto downloader = static_cast<FZFileDownloader*>(param);
+	OnDownloadInProgress(downloader, totalSizeLow, bytesReceivedLow);
 }
 
 u32 __cdecl OnGamespyDownloadFinished(u32 request, u32 requestResult, char* buffer, u32 bufferLen_low, u32 bufferLen_high, void* param)
 {
-	FZFileDownloader* downloader = reinterpret_cast<FZFileDownloader*>(param);
+	const auto downloader = static_cast<FZFileDownloader*>(param);
 
 	if (requestResult == GHTTPSuccess)
 		Msg("- %s OnGamespyDownloadFinished (%u)", CB_LBL, requestResult);
@@ -488,12 +488,11 @@ bool FZGameSpyDownloaderThread::StartDownload(FZFileDownloader* dl)
 		}
 		else if (FindDownloader(dl) < 0)
 		{
-			u32 request = m_pXrGsGHttpSaveEx(dl->GetUrl().c_str(), dl->GetFilename().c_str(), nullptr, nullptr, 0, 0, progresscb, finishcb, dl);
+			const u32 request = m_pXrGsGHttpSaveEx(dl->GetUrl().c_str(), dl->GetFilename().c_str(), nullptr, nullptr, 0, 0, progresscb, finishcb, dl);
 
 			if (request != GHTTPRequestError)
 			{
 				Msg("- %s Download started, request %u", TH_LBL, request);
-				int dl_i = m_Downloaders.size();
 				m_Downloaders.push_back(dl);
 				res = true;
 			}
@@ -520,7 +519,7 @@ bool FZGameSpyDownloaderThread::ProcessDownloads()
 bool FZGameSpyDownloaderThread::CancelDownload(FZFileDownloader* dl)
 {
 	bool result = false;
-	int dlIt = FindDownloader(dl);
+	const int dlIt = FindDownloader(dl);
 
 	if (dlIt >= 0)
 	{
@@ -580,7 +579,7 @@ void FZDownloaderThreadInfoQueue::Flush()
 {
 	Msg("- %s Flush commands", QUEUE_LBL);
 
-	for (auto cmd : m_Queue)
+	for (const auto cmd : m_Queue)
 		cmd->downloader->Release();
 
 	m_Queue.clear();
@@ -592,7 +591,7 @@ u32 FZDownloaderThreadInfoQueue::Count() const
 	return m_CurItemsCnt;
 }
 
-FZDownloaderThreadCmd* FZDownloaderThreadInfoQueue::Get(int i)
+FZDownloaderThreadCmd* FZDownloaderThreadInfoQueue::Get(u32 i)
 {
 	if (i >= Count())
 		Msg("! %s Invalid item index", QUEUE_LBL);
@@ -609,18 +608,8 @@ FZFileDownloader::FZFileDownloader(const string &url, const string &filename, u3
 	m_Status = DOWNLOAD_SUCCESS;
 	m_AcquiresCount = 0;
 	m_pThread = thread;
+	m_Request = 0;
 	Msg("- %s Created downloader for %s from %s, compression %u", DL_LBL, m_FileName.c_str(), url.c_str(), m_CompressionType);
-}
-
-FZFileDownloader::~FZFileDownloader()
-{
-	// moved to parent
-	//Msg("- %s Wait for DL finished for %s", DL_LBL, m_FileName.c_str());
-
-	//while (IsBusy())
-	//	Sleep(100);
-
-	//Msg("- %s Destroying downloader for %s", DL_LBL, m_FileName.c_str());
 }
 
 bool FZFileDownloader::IsBusy()
@@ -634,7 +623,7 @@ bool FZFileDownloader::IsBusy()
 string FZFileDownloader::GetUrl()
 {
 	Lock();
-	const string res = m_Url;
+	string res = m_Url;
 	Unlock();
 	return res;
 }
@@ -642,7 +631,7 @@ string FZFileDownloader::GetUrl()
 string FZFileDownloader::GetFilename()
 {
 	Lock();
-	const string res = m_FileName;
+	string res = m_FileName;
 	Unlock();
 	return res;
 }
@@ -672,7 +661,7 @@ bool FZFileDownloader::StartAsyncDownload()
 
 	try
 	{
-		auto info = new FZDownloaderThreadCmd();
+		const auto info = new FZDownloaderThreadCmd();
 		info->downloader = this;
 		info->cmd = FZDownloaderAdd;
 		result = m_pThread->AddCommand(info);
@@ -729,7 +718,7 @@ bool FZFileDownloader::RequestStop()
 	Msg("- %s RequestStop for downloader %s, req = %u", DL_LBL, GetFilename().c_str(), m_Request);
 	Acquire(); //To avoid removing before command is sent
 
-	auto info = new FZDownloaderThreadCmd();
+	const auto info = new FZDownloaderThreadCmd();
 	info->downloader = this;
 	info->cmd = FZDownloaderStop;
 	Unlock(); //Unlock to avoid deadlock between downloader's and thread's mutexes
@@ -852,12 +841,12 @@ void FZDownloaderThread::WaitForThreadTermination()
 	}
 }
 
-int FZDownloaderThread::FindDownloader(FZFileDownloader* dl)
+int FZDownloaderThread::FindDownloader(const FZFileDownloader* dl)
 {
 	int result = -1;
 	std::lock_guard guard(m_RecursiveLock);
 
-	for (u32 i = m_Downloaders.size() - 1; i > 0; i--)
+	for (int i = m_Downloaders.size() - 1; i > 0; i--)
 	{
 		if (dl == m_Downloaders[i])
 		{
@@ -871,15 +860,15 @@ int FZDownloaderThread::FindDownloader(FZFileDownloader* dl)
 
 void FZDownloaderThread::ProcessCommands()
 {
-	std::lock_guard<std::recursive_mutex> guard(m_RecursiveLock);
+	std::lock_guard guard(m_RecursiveLock);
 
-	if (u32 queue_cnt = m_CommandsQueue->Count())
+	if (const u32 queueCnt = m_CommandsQueue->Count())
 	{
-		Msg("- %s Start processing commands (%u)", TH_LBL, queue_cnt);
+		Msg("- %s Start processing commands (%u)", TH_LBL, queueCnt);
 
-		for (u32 i = 0; i < queue_cnt; i++)
+		for (u32 i = 0; i < queueCnt; i++)
 		{
-			FZDownloaderThreadCmd* command = m_CommandsQueue->Get(i);
+			const FZDownloaderThreadCmd* command = m_CommandsQueue->Get(i);
 
 			switch (command->cmd)
 			{

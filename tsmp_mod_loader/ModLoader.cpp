@@ -68,9 +68,9 @@ bool FileExists(const string &path)
 	return PathFileExists(path.c_str());
 }
 
-FZDownloaderThread* CreateDownloaderThreadForUrl(string url)
+FZDownloaderThread* CreateDownloaderThreadForUrl(const string &url)
 {
-	const char* httpsStr = "https";
+	//const char* httpsStr = "https";
 
 	// TODO: CURL
 	//if (IsGameSpyDlForced(g_ModParams) && strncmp(url.c_str(), httpsStr, strlen(httpsStr)))
@@ -161,11 +161,10 @@ FZMasterListApproveType DownloadAndParseMasterModsList(FZModSettings &settings, 
 	{
 		string tmp1, tmp2;
 		bool binlistValid, gamelistValid;
-		int j;
 
 		// ћастер-список успешно скачалс€, будем парсить его содержимое
 		FZIniFile cfg(fullPath);
-		for (int i = 0; i < cfg.GetSectionsCount(); i++)
+		for (u32 i = 0; i < cfg.GetSectionsCount(); i++)
 		{
 			if (cfg.GetSectionName(i) == tmpSettings.modName)
 			{
@@ -174,7 +173,7 @@ FZMasterListApproveType DownloadAndParseMasterModsList(FZModSettings &settings, 
 				paramsApproved = FZ_MASTERLIST_NOT_APPROVED;
 
 				//«аполн€ем список всех доступных зеркал, попутно ищем ссылки из binlist и gamelist в списке зеркал
-				j = 0;
+				int j = 0;
 				if (tmpSettings.gamelistUrl.empty() && tmpSettings.binlistUrl.empty())
 				{
 
@@ -213,7 +212,7 @@ FZMasterListApproveType DownloadAndParseMasterModsList(FZModSettings &settings, 
 					if (tmp2 == tmpSettings.gamelistUrl)
 						gamelistValid = true;
 
-					j = j + 1;
+					j++;
 				}
 
 				//”беждаемс€, что пользователь не подсунул нам "левую" ссылку
@@ -240,15 +239,14 @@ FZMasterListApproveType DownloadAndParseMasterModsList(FZModSettings &settings, 
 				{
 					if (!mirrors.gamelistUrls.empty())
 						tmpSettings.gamelistUrl = mirrors.gamelistUrls[0];
-
-
+					
 					if (!mirrors.binlistUrls.empty())
 						tmpSettings.binlistUrl = mirrors.binlistUrls[0];
 
-					for (u32 j = 0; j < mirrors.binlistUrls.size() - 1; j++)
+					for (u32 k = 0; k < mirrors.binlistUrls.size() - 1; k++)
 					{
-						mirrors.gamelistUrls[j] = mirrors.gamelistUrls[j + 1];
-						mirrors.binlistUrls[j] = mirrors.binlistUrls[j + 1];
+						mirrors.gamelistUrls[k] = mirrors.gamelistUrls[k + 1];
+						mirrors.binlistUrls[k] = mirrors.binlistUrls[k + 1];
 					}
 
 					// TODO: разобратьс€ что тут было
@@ -268,7 +266,7 @@ FZMasterListApproveType DownloadAndParseMasterModsList(FZModSettings &settings, 
 				//≈сли ссылка на binlist пуста€ или находитс€ в конфиге какого-либо мода - можно заапрувить ее
 				//ќднако заканчивать рано - надо перебирать и провер€ть также следующие секции, так как в них может найтись секци€ с модом, в которой будут другие движок и/или геймдата!
 				binlistValid = tmpSettings.binlistUrl.empty();
-				j = 0;
+				int j = 0;
 				tmp2 = cfg.GetSectionName(i);
 
 				while (!binlistValid)
@@ -279,7 +277,7 @@ FZMasterListApproveType DownloadAndParseMasterModsList(FZModSettings &settings, 
 						break;
 					
 					binlistValid = tmp1 == tmpSettings.binlistUrl;
-					j = j + 1;
+					j++;
 				}
 
 				if (binlistValid)
@@ -371,7 +369,7 @@ bool DownloadAndApplyFileList(const string &url, const string &listFilename, con
 	}
 
 	FZIniFile cfg(filepath);
-	int filesCount = cfg.GetIntDef("main", "files_count", 0);
+	const int filesCount = cfg.GetIntDef("main", "files_count", 0);
 
 	if (!filesCount)
 	{
@@ -465,13 +463,13 @@ bool DownloadCallback(const FZFileActualizingProgressInfo &info, void* userdata)
 
 	if (info.totalModSize > 0)
 	{
-		long long ready = info.totalDownloaded + info.totalUpToDateSize;
+		const long long ready = info.totalDownloaded + info.totalUpToDateSize;
 
 		if (ready > 0)
 			progress = (static_cast<float>(ready) / info.totalModSize) * 100;
 	}
 
-	auto lastDownloadedBytes = reinterpret_cast<long long*>(userdata);
+	const auto lastDownloadedBytes = static_cast<long long*>(userdata);
 
 	if (*lastDownloadedBytes != info.totalDownloaded)
 	{
@@ -588,7 +586,7 @@ void PreprocessFiles(FZFiles &files, const string &modRoot)
 
 	for (int i = files.EntriesCount() - 1; i >= 0; i--)
 	{
-		pFZFileItemData e = files.GetEntry(i);
+		const pFZFileItemData e = files.GetEntry(i);
 
 		if (!strncmp(e->name.c_str(), UserdataDirName, userdataDirStrLen) && e->requiredAction == FZ_FILE_ACTION_UNDEFINED)
 		{
@@ -600,7 +598,7 @@ void PreprocessFiles(FZFiles &files, const string &modRoot)
 
 FZConfigBackup CreateConfigBackup(const string &filename)
 {
-	const u32 MAX_LEN = 1 * 1024 * 1024;
+	constexpr u32 MAX_LEN = 1 * 1024 * 1024;
 
 	FZConfigBackup result;
 	result.sz = 0;
@@ -621,7 +619,7 @@ FZConfigBackup CreateConfigBackup(const string &filename)
 	{
 		DWORD readcnt = 0;
 
-		u32 sz = GetFileSize(f, nullptr);
+		const u32 sz = GetFileSize(f, nullptr);
 		Msg("Size of the config file %s is %u", filename.c_str(), sz);
 
 		if (sz > MAX_LEN)
@@ -691,7 +689,7 @@ void BuildUserLtx(const FZModSettings &settings)
 		string dstName = settings.rootDir + UserdataDirName;
 		ForceDirectories(dstName);
 		dstName = dstName + UserltxName;
-		string srcname = VersionAbstraction()->UpdatePath("$app_data_root$", "user.ltx");
+		const string srcname = VersionAbstraction()->UpdatePath("$app_data_root$", "user.ltx");
 		Msg("Copy from %s to %s", srcname.c_str(), dstName.c_str());
 		CopyFile(srcname.c_str(), dstName.c_str(), false);
 		VersionAbstraction()->ExecuteConsoleCommand("cfg_save " + dstName);
@@ -808,9 +806,9 @@ bool RunClient(const FZModSettings &settings)
 	return true;
 }
 
-bool GetFileLists(FZFiles &filesCp, FZFiles& files, FZModSettings &modSettings, FZMasterListApproveType masterlinksParseResult, FZModMirrorsSettings &mirrors)
+bool GetFileLists(const FZFiles &filesCp, FZFiles& files, FZModSettings &modSettings, FZMasterListApproveType masterlinksParseResult, const FZModMirrorsSettings &mirrors)
 {
-	int mirrorId = 0;
+	u32 mirrorId = 0;
 	bool flag;
 
 	do
@@ -866,7 +864,7 @@ bool GetFileLists(FZFiles &filesCp, FZFiles& files, FZModSettings &modSettings, 
 		if (mirrorId < mirrors.gamelistUrls.size())
 			modSettings.gamelistUrl = mirrors.gamelistUrls[mirrorId];
 
-		mirrorId = mirrorId + 1;
+		mirrorId++;
 	} while (mirrorId > mirrors.binlistUrls.size() || mirrorId > mirrors.gamelistUrls.size());  //¬нимание! “ут все верно! Ќе ставить больше либо равно - перва€ итераци€ берет ссылки не из mirrors!
 
 	return flag;
@@ -925,7 +923,7 @@ bool UpdateModFiles(FZModSettings &modSettings)
 {
 	VersionAbstraction()->AssignStatus("Parsing master links list...");
 	FZModMirrorsSettings mirrors;
-	FZMasterListApproveType masterlinksParseResult = DownloadAndParseMasterModsList(modSettings, mirrors);
+	const FZMasterListApproveType masterlinksParseResult = DownloadAndParseMasterModsList(modSettings, mirrors);
 
 	if (masterlinksParseResult == FZ_MASTERLIST_NOT_APPROVED)
 	{
@@ -958,8 +956,8 @@ bool UpdateModFiles(FZModSettings &modSettings)
 	filesCp.Copy(files);
 
 	//“акже прочитаем и запомним содержимое binlist и gamelist - чтобы попробовать использовать старый конфиг, если ни одно из зеркал не окажетс€ доступным.
-	FZConfigBackup oldGamelist = CreateConfigBackup(modSettings.rootDir + GamedataFilesListName);
-	FZConfigBackup oldBinlist = CreateConfigBackup(modSettings.rootDir + EngineFilesListName);
+	const FZConfigBackup oldGamelist = CreateConfigBackup(modSettings.rootDir + GamedataFilesListName);
+	const FZConfigBackup oldBinlist = CreateConfigBackup(modSettings.rootDir + EngineFilesListName);
 
 	bool flag = GetFileLists(filesCp, files, modSettings, masterlinksParseResult, mirrors);
 

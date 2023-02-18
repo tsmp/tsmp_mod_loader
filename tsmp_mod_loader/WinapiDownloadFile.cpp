@@ -7,8 +7,8 @@ const int MaxDownloadFileSize = 0x100000;
 
 bool WinapiDownloadFile(const char* url, const char* path)
 {
-	HINTERNET hInetSession = InternetOpen(0, INTERNET_OPEN_TYPE_PRECONFIG, 0, 0, 0);
-	HINTERNET hURL = InternetOpenUrl(hInetSession, url, 0, 0, 0, 0);
+	const HINTERNET hInetSession = InternetOpen(0, INTERNET_OPEN_TYPE_PRECONFIG, 0, 0, 0);
+	const HINTERNET hURL = InternetOpenUrl(hInetSession, url, 0, 0, 0, 0);
 
 	char* buffer = new char[MaxDownloadFileSize];
 	DWORD dwBytesRead = 0;
@@ -23,7 +23,7 @@ bool WinapiDownloadFile(const char* url, const char* path)
 		return false;
 	}
 
-	HANDLE handle = CreateFileA(path, GENERIC_WRITE, FILE_SHARE_READ, NULL, CREATE_NEW | TRUNCATE_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+	const HANDLE handle = CreateFileA(path, GENERIC_WRITE, FILE_SHARE_READ, NULL, CREATE_NEW | TRUNCATE_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 
 	if (handle == INVALID_HANDLE_VALUE)
 	{

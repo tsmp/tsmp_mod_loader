@@ -18,7 +18,7 @@ extern bool g_SkipFullFileCheck;
 // Создает папки по указанному пути
 bool ForceDirectories(const string &path)
 {
-	int res = SHCreateDirectoryEx(nullptr, path.c_str(), nullptr);
+	const int res = SHCreateDirectoryEx(nullptr, path.c_str(), nullptr);
 	return res == ERROR_ALREADY_EXISTS || res == ERROR_SUCCESS;
 }
 
@@ -40,12 +40,12 @@ FZCheckParams GetDummyChecks()
 
 bool IsDummy(const FZCheckParams &c)
 {
-	return !c.crc32 && !c.size && !c.md5.size();
+	return !c.crc32 && !c.size && c.md5.empty();
 }
 
 bool CompareFiles(const FZCheckParams &c1, const FZCheckParams &c2)
 {
-	bool res = c1.size == c2.size;
+	const bool res = c1.size == c2.size;
 
 	if (g_SkipFullFileCheck)
 		return res;
@@ -58,7 +58,7 @@ bool FZFiles::ScanDir(const string &dir_path)
 	string name = m_ParentPath + dir_path + "*.*";
 
 	WIN32_FIND_DATA data;
-	HANDLE hndl = FindFirstFile(name.c_str(), &data);
+	const HANDLE hndl = FindFirstFile(name.c_str(), &data);
 
 	if (hndl == INVALID_HANDLE_VALUE)
 		return false;
@@ -85,14 +85,14 @@ bool FZFiles::ScanDir(const string &dir_path)
 
 inline std::string trim(const std::string& s)
 {
-	auto wsfront = std::find_if_not(s.begin(), s.end(), [](int c) {return std::isspace(c); });
-	auto wsback = std::find_if_not(s.rbegin(), s.rend(), [](int c) {return std::isspace(c); }).base();
+	const auto wsfront = std::find_if_not(s.begin(), s.end(), [](int c) {return std::isspace(c); });
+	const auto wsback = std::find_if_not(s.rbegin(), s.rend(), [](int c) {return std::isspace(c); }).base();
 	return (wsback <= wsfront ? std::string() : std::string(wsfront, wsback));
 }
 
 pFZFileItemData FZFiles::CreateFileData(const string &name, const string &url, u32 compression, const FZCheckParams &needChecks)
 {
-	auto result = new FZFileItemData();
+	const auto result = new FZFileItemData();
 
 	result->name = trim(name);
 	result->url = trim(url);
@@ -121,17 +121,17 @@ void FZFiles::Clear()
 {
 	m_ParentPath = "";
 	
-	for (pFZFileItemData item : m_Files)
+	for (const pFZFileItemData item : m_Files)
 		delete item;
 
 	m_Files.clear();
 }
 
-void FZFiles::Dump( /*severity:FZLogMessageSeverity = FZ_LOG_INFO*/)
+void FZFiles::Dump() const
 {
 	Msg("- %s =======File list dump start=======", FM_LBL);
 
-	for (pFZFileItemData data : m_Files)
+	for (const pFZFileItemData data : m_Files)
 	{
 		if (data)
 			Msg("- %s %s, action=%u, size %u (%u), crc32 = %#08x (%#08x), url=%s", FM_LBL, data->name.c_str(), data->requiredAction, data->real.size, data->target.size,
@@ -171,7 +171,7 @@ bool FZFiles::UpdateFileInfo(string filename, const string &url, u32 compression
 	//Пробуем найти файл среди существующих
 	pFZFileItemData filedata = nullptr;
 
-	for (pFZFileItemData item : m_Files)
+	for (const pFZFileItemData item : m_Files)
 	{
 		if (item && item->name == filename)
 		{
@@ -244,7 +244,7 @@ void FZFiles::SortBySize()
 
 		if (i != max)
 		{
-			pFZFileItemData temp = m_Files[i];
+			const pFZFileItemData temp = m_Files[i];
 			m_Files[i] = m_Files[max];
 			m_Files[max] = temp;
 		}
@@ -260,7 +260,7 @@ bool FZFiles::ActualizeFiles()
 
 	for (u32 i = 0; i < m_Files.size(); i++)
 	{
-		pFZFileItemData filedata = m_Files[i];
+		const pFZFileItemData filedata = m_Files[i];
 
 		if (!filedata)
 			continue;
@@ -327,7 +327,7 @@ bool FZFiles::ActualizeFiles()
 	
 	//Начнем загрузку
 	//if (m_Mode==FZ_DL_MODE_GAMESPY)
-	auto thread = new FZGameSpyDownloaderThread();
+	const auto thread = new FZGameSpyDownloaderThread();
 	//else
 	//    thread=new FZCurlDownloaderThread();
 
@@ -336,7 +336,7 @@ bool FZFiles::ActualizeFiles()
 	vector<FZFileDownloader*> downloaders;
 	downloaders.reserve(MAX_ACTIVE_DOWNLOADERS);
 
-	for (int i = 0; i < MAX_ACTIVE_DOWNLOADERS; i++)
+	for (u32 i = 0; i < MAX_ACTIVE_DOWNLOADERS; i++)
 		downloaders.push_back(nullptr);
 
 	bool finished = false;
@@ -362,7 +362,7 @@ bool FZFiles::ActualizeFiles()
 				//Слот свободен. Поставим туда что-нибудь, если найдем
 				while (lastFileIndex >= 0)
 				{
-					pFZFileItemData filedata = m_Files[lastFileIndex];
+					const pFZFileItemData filedata = m_Files[lastFileIndex];
 					lastFileIndex = lastFileIndex - 1; //сдвигаем индекс на необработанный файл
 
 					if (filedata && filedata->requiredAction == FZ_FILE_ACTION_DOWNLOAD)
@@ -397,7 +397,7 @@ bool FZFiles::ActualizeFiles()
 				downloadedTotal = downloadedTotal + downloaders[i]->DownloadedBytes();
 
 				if (!result)
-					Msg("! %s Download failed for %s", FM_LBL, downloaders[i]->GetFilename().c_str());;
+					Msg("! %s Download failed for %s", FM_LBL, downloaders[i]->GetFilename().c_str());
 
 				delete downloaders[i];
 				downloaders[i] = nullptr;
@@ -428,7 +428,7 @@ bool FZFiles::ActualizeFiles()
 
 	//и удаляем их
 	Msg("- %s Delete downloaders", FM_LBL);
-	for (FZFileDownloader* loader : downloaders)
+	for (const FZFileDownloader* loader : downloaders)
 		delete loader;
 
 	downloaders.clear();
@@ -445,7 +445,7 @@ bool FZFiles::ActualizeFiles()
 			cbInfo.totalDownloaded = 0;
 			result = m_pCallback(cbInfo, m_pCbUserdata);
 
-			for (pFZFileItemData filedata : m_Files)
+			for (const pFZFileItemData filedata : m_Files)
 			{
 				if (!result)
 					break;
@@ -512,7 +512,7 @@ bool FZFiles::AddIgnoredFile(const string &filename)
 	//Пробуем найти файл среди существующих
 	pFZFileItemData filedata = nullptr;
 
-	for (pFZFileItemData data : m_Files)
+	for (const pFZFileItemData data : m_Files)
 	{
 		if (data && data->name == filename)
 		{
@@ -533,7 +533,7 @@ void FZFiles::SetCallback(FZFileActualizingCallback cb, void* userdata)
 	m_pCallback = cb;
 }
 
-int FZFiles::EntriesCount()
+u32 FZFiles::EntriesCount() const
 {
 	return m_Files.size();
 }
@@ -575,9 +575,9 @@ void FZFiles::Copy(const FZFiles &from)
 	m_ParentPath = from.m_ParentPath;
 	m_Mode = from.m_Mode;
 
-	for (pFZFileItemData filedata2 : from.m_Files)
+	for (const pFZFileItemData filedata2 : from.m_Files)
 	{
-		pFZFileItemData filedata = new FZFileItemData();
+		auto filedata = new FZFileItemData();
 		*filedata = *filedata2;
 		m_Files.push_back(filedata);
 	}

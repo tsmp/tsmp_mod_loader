@@ -79,11 +79,11 @@ protected:
 	static void* DoEcxCall_2arg(void* fun, void* obj, const void* arg1, const void* arg2);
 	static void* DoEcxCall_3arg(void* fun, void* obj, const void* arg1, const void* arg2, const void* arg3);
 
-	void* GetLevel();
+	void* GetLevel() const;
 
 public:
 	FZBaseGameVersion();
-	virtual ~FZBaseGameVersion() = default;
+	~FZBaseGameVersion() override = default;
 
 	string GetCoreParams() override;
 	string GetCoreApplicationPath() override;
@@ -306,16 +306,16 @@ FZBaseGameVersion::FZBaseGameVersion()
 	uniassert(m_XrGameModuleAddress, "xrGame is 0");
 	uniassert(m_XrCoreModuleAddress, "xrCore is 0");
 
-	m_pGameLevel = GetProcAddress(m_ExeModuleAddress, "?m_pGameLevel@@3PAVIGame_Level@@A");
+	m_pGameLevel = GetProcAddress(m_ExeModuleAddress, "?g_pGameLevel@@3PAVIGame_Level@@A");
 	uniassert(m_pGameLevel, "g_ppGameLevel is 0");
 
 	m_pConsole = reinterpret_cast<u32*>(GetProcAddress(m_ExeModuleAddress, "?Console@@3PAVCConsole@@A"));
 	uniassert(m_pConsole, "console is 0");
 
-	m_pCore = (pxrCoreData)GetProcAddress(m_XrCoreModuleAddress, "?Core@@3VxrCore@@A");
+	m_pCore = reinterpret_cast<pxrCoreData>(GetProcAddress(m_XrCoreModuleAddress, "?Core@@3VxrCore@@A"));
 	uniassert(m_pCore, "core is 0");
 
-	m_pXrFS = reinterpret_cast<u32*>(GetProcAddress(m_XrCoreModuleAddress, "?m_pXrFS@@3PAVCLocatorAPI@@A"));
+	m_pXrFS = reinterpret_cast<u32*>(GetProcAddress(m_XrCoreModuleAddress, "?xr_FS@@3PAVCLocatorAPI@@A"));
 	uniassert(m_pXrFS, "fs is 0");
 
 	m_pCConsoleExecute = GetProcAddress(m_ExeModuleAddress, "?Execute@CConsole@@QAEXPBD@Z");
@@ -328,7 +328,7 @@ FZBaseGameVersion::FZBaseGameVersion()
 	uniassert(m_pCLocatorApiPathExists, "CLocatorApi::path_exists is 0");
 
 	//ќсторожно! —обака кусаетс€! (тут функци€, провер€ем значение указател€ на нее)
-	m_pLogFunction = (LogFuncPtr)GetProcAddress(m_XrCoreModuleAddress, "?Msg@@YAXPBDZZ");
+	m_pLogFunction = reinterpret_cast<LogFuncPtr>(GetProcAddress(m_XrCoreModuleAddress, "?Msg@@YAXPBDZZ"));
 	uniassert(m_pLogFunction, "m_pLogFunction is 0");
 
 	//ѕо умолчанию, будем использовать эту заглушку, если в потомках не найдетс€ чего-то поприличнее
@@ -434,9 +434,9 @@ void* FZBaseGameVersion::DoEcxCall_3arg(void* fun, void* obj, const void* arg1, 
 	}
 }
 
-void* FZBaseGameVersion::GetLevel()
+void* FZBaseGameVersion::GetLevel() const
 {
-	return reinterpret_cast<void*>(*reinterpret_cast<u32*>(m_pGameLevel));
+	return reinterpret_cast<void*>(*static_cast<u32*>(m_pGameLevel));
 }
 
 string FZBaseGameVersion::GetCoreParams()
@@ -504,7 +504,7 @@ string FZBaseGameVersion::GetPlayerName()
 {
 	const char* cmd = "mm_net_player_name";
 	void* res = DoEcxCall_1arg(m_pCConsoleGetString, reinterpret_cast<void*>(*m_pConsole), cmd);
-	string result(reinterpret_cast<char*>(res));
+	string result(static_cast<char*>(res));
 	return  result;
 }
 
@@ -599,7 +599,7 @@ FZCommonGameVersion::FZCommonGameVersion()
 	uniassert(m_pStrContainerDock, "str_container::dock is 0");
 
 	//ќсторожно! —обака кусаетс€! (тут функци€, провер€ем значение указател€ на нее)
-	m_pThreadSpawnFunc = (ThreadSpawnFuncPtr)GetProcAddress(m_XrCoreModuleAddress, "?m_pThreadSpawnFunc@@YAXP6AXPAX@ZPBDI0@Z");
+	m_pThreadSpawnFunc = reinterpret_cast<ThreadSpawnFuncPtr>(GetProcAddress(m_XrCoreModuleAddress, "?thread_spawn@@YAXP6AXPAX@ZPBDI0@Z"));
 	uniassert(m_pThreadSpawnFunc, "m_pThreadSpawnFunc is 0");
 }
 
@@ -655,14 +655,12 @@ void FZCommonGameVersion::assign_string(u32 pshared_str, const string &text)
 
 	if (pNewValue)
 	{
-		u32 newWalCH = reinterpret_cast<u32>(pNewValue);
-		u32* dwReference = reinterpret_cast<u32*>(newWalCH + get_str_value__dwReference_offset());
+		const u32 newVal = reinterpret_cast<u32>(pNewValue);
+		u32* dwReference = reinterpret_cast<u32*>(newVal + get_str_value__dwReference_offset());
 		*dwReference = *dwReference + 1;
 	}
-
-	u32 pOldValue = *reinterpret_cast<u32*>(pshared_str + get_shared_str__p_offset());
-
-	if (pOldValue)
+	
+	if (const u32 pOldValue = *reinterpret_cast<u32*>(pshared_str + get_shared_str__p_offset()))
 	{
 		u32* dwReference = reinterpret_cast<u32*>(pOldValue + get_str_value__dwReference_offset());
 		*dwReference = *dwReference - 1;
@@ -677,7 +675,7 @@ void FZCommonGameVersion::assign_string(u32 pshared_str, const string &text)
 
 u32 FZCommonGameVersion::GetMainMenu()
 {
-	u32 gamePersistent = *reinterpret_cast<u32*>(m_pGamePersistent);
+	const u32 gamePersistent = *reinterpret_cast<u32*>(m_pGamePersistent);
 	uniassert(gamePersistent, "gamePersistent not exist");
 	return *reinterpret_cast<u32*>(gamePersistent + get_IGamePersistent__m_pMainMenu_offset());
 }
@@ -690,16 +688,16 @@ void FZCommonGameVersion::ActivateMainMenu(bool state)
 
 bool FZCommonGameVersion::IsMessageActive()
 {
-	u32 mm = GetMainMenu();
+	const u32 mm = GetMainMenu();
 
 	if (!mm)
 		return false;
 
-	u32 windows_start = *reinterpret_cast<u32*>(mm + get_CMainMenu__m_pMB_ErrDlgs_first_element_ptr_offset());
+	const u32 windows_start = *reinterpret_cast<u32*>(mm + get_CMainMenu__m_pMB_ErrDlgs_first_element_ptr_offset());
 	if (!windows_start)
 		return false;
 
-	u32 msgwnd = *reinterpret_cast<u32*>(windows_start + sizeof(u32) * get_CMainMenu__Message_dlg_id());
+	const u32 msgwnd = *reinterpret_cast<u32*>(windows_start + sizeof(u32) * get_CMainMenu__Message_dlg_id());
 	if (!msgwnd)
 		return false;
 
@@ -708,7 +706,7 @@ bool FZCommonGameVersion::IsMessageActive()
 		return true;
 
 	//Ѕыть может, мы его собираемс€ показать? (наоборот провер€ть нельз€! ¬ыставление значени€ во врем€ активности окна его скрывает!)
-	EErrorDlg m_NeedErrDialog = *reinterpret_cast<EErrorDlg*>(mm + get_CMainMenu__m_NeedErrDialog_offset());
+	const EErrorDlg m_NeedErrDialog = *reinterpret_cast<EErrorDlg*>(mm + get_CMainMenu__m_NeedErrDialog_offset());
 	return m_NeedErrDialog == get_CMainMenu__Message_dlg_id(); // NoNewPatch
 }
 
@@ -727,16 +725,16 @@ void FZCommonGameVersion::PrepareForMessageShowing()
 
 void FZCommonGameVersion::ResetMasterServerError()
 {
-	u32 mm = GetMainMenu();
+	const u32 mm = GetMainMenu();
 
 	if (!mm)
 		return;
 
-	u32 gsfull = *reinterpret_cast<u32*>(mm + get_CMainMenu__m_pGameSpyFull_offset());
+	const u32 gsfull = *reinterpret_cast<u32*>(mm + get_CMainMenu__m_pGameSpyFull_offset());
 	if (!gsfull)
 		return;
 
-	u32 sb = *reinterpret_cast<u32*>(gsfull + get_CGameSpy_Full__m_pGS_SB_offset());
+	const u32 sb = *reinterpret_cast<u32*>(gsfull + get_CGameSpy_Full__m_pGS_SB_offset());
 	if (!sb)
 		return;
 
@@ -749,17 +747,17 @@ void FZCommonGameVersion::ShowMpMainMenu()
 	const u32 MP_MENU_CMD = 2;
 	const u32 MP_MENU_PARAM = 1;
 
-	void* arg1 = reinterpret_cast<void*>(MP_MENU_CMD);
-	void* arg2 = reinterpret_cast<void*>(MP_MENU_PARAM);
+	const void* arg1 = reinterpret_cast<void*>(MP_MENU_CMD);
+	const void* arg2 = reinterpret_cast<void*>(MP_MENU_PARAM);
 
-	u32 mm = GetMainMenu();
+	const u32 mm = GetMainMenu();
 	SafeExec_start();
 
 	ActivateMainMenu(false);
 	ActivateMainMenu(true);
 
 	//m_startDialog обновл€етс€ после ActivateMainMenu, поэтому нельз€ заранее смотреть его положение!
-	u32 dlg = *reinterpret_cast<u32*>(mm + get_CMainMenu__m_startDialog_offset());
+	const u32 dlg = *reinterpret_cast<u32*>(mm + get_CMainMenu__m_startDialog_offset());
 	void* pDlg = reinterpret_cast<void*>(dlg);
 
 	if (dlg)
@@ -770,7 +768,7 @@ void FZCommonGameVersion::ShowMpMainMenu()
 
 void FZCommonGameVersion::AssignStatus(const string &str)
 {
-	u32 mm = GetMainMenu();
+	const u32 mm = GetMainMenu();
 	SafeExec_start();
 	assign_string(mm + get_CMainMenu__m_sPDProgress__FileName_offset(), str);
 	assign_string(mm + get_CMainMenu__m_sPDProgress__Status_offset(), str);
@@ -786,7 +784,7 @@ bool FZCommonGameVersion::CheckForUserCancelDownload()
 
 bool FZCommonGameVersion::StartVisualDownload()
 {
-	u32 mm = GetMainMenu();
+	const u32 mm = GetMainMenu();
 
 	// Ќазначим строку-по€снение над индикатором загрузки (там что-то должно быть перед
 	// назначением IsInProgress, иначе есть веро€тность вылета при попытке отрисовки)
@@ -811,10 +809,10 @@ bool FZCommonGameVersion::StartVisualDownload()
 	SetVisualProgress(0);
 
 	//Ќа случай нажати€ кнопки отмена - укажем, что активного запроса о загрузке не было
-	u32 gsFull = *reinterpret_cast<u32*>(mm + get_CMainMenu__m_pGameSpyFull_offset());
+	const u32 gsFull = *reinterpret_cast<u32*>(mm + get_CMainMenu__m_pGameSpyFull_offset());
 	uniassert(gsFull, "m_pGameSpyFull is 0");
 
-	u32 gsHttp = *reinterpret_cast<u32*>(gsFull + get_CGameSpy_Full__m_pGS_HTTP_offset());
+	const u32 gsHttp = *reinterpret_cast<u32*>(gsFull + get_CGameSpy_Full__m_pGS_HTTP_offset());
 	uniassert(gsHttp, "m_pGS_HTTP is 0");
 
 	int* m_LastRequest = reinterpret_cast<int*>(gsHttp + get_CGameSpy_HTTP__m_LastRequest_offset());
@@ -857,41 +855,41 @@ void FZCommonGameVersion::AbortConnection()
 	if (!CheckForLevelExist())
 		return;
 
-	char* lvl = reinterpret_cast<char*>(GetLevel());
+	char* lvl = static_cast<char*>(GetLevel());
 
 	bool* m_bConnectResult = reinterpret_cast<bool*>(lvl + get_CLevel__m_bConnectResult_offset());
 	bool* m_bConnectResultReceived = reinterpret_cast<bool*>(lvl + get_CLevel__m_bConnectResultReceived_offset());
-	EConnect* m_connect_server_err = reinterpret_cast<EConnect*>(lvl + get_CLevel__m_connect_server_err_offset());
+	const auto m_connect_server_err = reinterpret_cast<EConnect*>(lvl + get_CLevel__m_connect_server_err_offset());
 	
 	*m_bConnectResult = false;
-	*m_connect_server_err = EConnect::ErrConnect;
+	*m_connect_server_err = ErrConnect;
 	*m_bConnectResultReceived = true;
 }
 
 bool FZCommonGameVersion::IsServerListUpdateActive()
 {
-	u32 mm = GetMainMenu();
+	const u32 mm = GetMainMenu();
 	if (!mm)
 		return false;
 
-	u32 gsfull = *reinterpret_cast<u32*>(mm + get_CMainMenu__m_pGameSpyFull_offset());
+	const u32 gsfull = *reinterpret_cast<u32*>(mm + get_CMainMenu__m_pGameSpyFull_offset());
 	if (!gsfull)
 		return false;
 
-	u32 sb = *reinterpret_cast<u32*>(gsfull + get_CGameSpy_Full__m_pGS_SB_offset());
+	const u32 sb = *reinterpret_cast<u32*>(gsfull + get_CGameSpy_Full__m_pGS_SB_offset());
 	if (!sb)
 		return false;
 
-	bool *m_bTryingToConnectToMasterServer = reinterpret_cast<bool*>(sb + get_CGameSpy_Browser__m_bTryingToConnectToMasterServer_offset());
+	const bool *m_bTryingToConnectToMasterServer = reinterpret_cast<bool*>(sb + get_CGameSpy_Browser__m_bTryingToConnectToMasterServer_offset());
 	if (*m_bTryingToConnectToMasterServer)
 		return true;
 
 	//—мотрим, не активно ли все еще окно
-	u32 windowStart = *reinterpret_cast<u32*>(mm + get_CMainMenu__m_pMB_ErrDlgs_first_element_ptr_offset());
+	const u32 windowStart = *reinterpret_cast<u32*>(mm + get_CMainMenu__m_pMB_ErrDlgs_first_element_ptr_offset());
 	if (!windowStart)
 		return false;
 
-	u32 msgwnd = *reinterpret_cast<u32*>(windowStart + sizeof(u32) * get_CMainMenu__ConnectToMasterServer_dlg_id());
+	const u32 msgwnd = *reinterpret_cast<u32*>(windowStart + sizeof(u32) * get_CMainMenu__ConnectToMasterServer_dlg_id());
 	if (!msgwnd)
 		return false;
 
@@ -901,7 +899,7 @@ bool FZCommonGameVersion::IsServerListUpdateActive()
 
 u32 FZCommonGameVersion::GetNeedErrorDlg()
 {
-	u32 mm = GetMainMenu();
+	const u32 mm = GetMainMenu();
 
 	if (!mm)
 		return 0;
@@ -911,7 +909,7 @@ u32 FZCommonGameVersion::GetNeedErrorDlg()
 
 void FZCommonGameVersion::SetActiveErrorDlg(u32 dlg)
 {
-	u32 menu = GetMainMenu();
+	const u32 menu = GetMainMenu();
 
 	if (!menu)
 		return;
@@ -1093,32 +1091,31 @@ char* FZGameVersion10006_v2::get_SecondaryThreadProcName()
 
 FZ_GAME_VERSION FZGameVersionCreator::GetGameVersion()
 {
-	FZ_GAME_VERSION result = FZ_GAME_VERSION::FZ_VER_UNKNOWN;	
-	HMODULE xrGS = GetModuleHandle("xrGameSpy.dll");
+	const FZ_GAME_VERSION result = FZ_GAME_VERSION::FZ_VER_UNKNOWN;	
+	const HMODULE xrGS = GetModuleHandle("xrGameSpy.dll");
 
 	if (!xrGS)
 		return result;
 
 	using xrGS_GetGameVersion = char* (__cdecl *)(const char* verFromReg);
-	xrGS_GetGameVersion getVersion = (xrGS_GetGameVersion)GetProcAddress(xrGS, "xrGS_GetGameVersion");
+	const auto getVersion = reinterpret_cast<xrGS_GetGameVersion>(GetProcAddress(xrGS, "xrGS_GetGameVersion"));
 
 	if (!getVersion)
 		return result;
 
-	u32* addr = reinterpret_cast<u32*>(reinterpret_cast<u32*>(getVersion)- reinterpret_cast<u32*>(xrGS));
-	char*verr = getVersion(nullptr);
-	std::string ver = verr;
+	const char* pVersion = getVersion(nullptr);
+	const std::string ver = pVersion;
 
 	if (ver != "1.0006")
 		return result;
 
-	u32 xr3DA = reinterpret_cast<u32>(GetModuleHandle("xr_3DA.exe"));
+	const u32 xr3DA = reinterpret_cast<u32>(GetModuleHandle("xr_3DA.exe"));
 
 	if (!xr3DA)
 		return result;
 
-	u32 Timestamp = *reinterpret_cast<u32*>(xr3DA + *reinterpret_cast<u32*>(xr3DA + 0x3C) + 8);
-	return (Timestamp == 0x47C577F6) ? FZ_GAME_VERSION::FZ_VER_SOC_10006_V2 : FZ_GAME_VERSION::FZ_VER_SOC_10006;
+	const u32 timestamp = *reinterpret_cast<u32*>(xr3DA + *reinterpret_cast<u32*>(xr3DA + 0x3C) + 8);
+	return (timestamp == 0x47C577F6) ? FZ_GAME_VERSION::FZ_VER_SOC_10006_V2 : FZ_GAME_VERSION::FZ_VER_SOC_10006;
 }
 
 FZAbstractGameVersion* FZGameVersionCreator::DetermineGameVersion()

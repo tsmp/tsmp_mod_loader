@@ -106,7 +106,7 @@ inline string GetPassword(const string &cmdline)
 inline string GetServerIp(const string &cmdline)
 {
     const char* SRV_IP = "-srv ";
-    const char* SRV_DOMAIN= "-srvname ";
+    //const char* SRV_DOMAIN = "-srvname ";
 
     const string modParams = cmdline + ' ';
     u32 ipPos;

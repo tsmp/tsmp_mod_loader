@@ -110,7 +110,11 @@ u32 DecompressCabFile(const string &filename)
 		//#ifdef LOG_UNPACKING 
 		//	cmd = "cmd.exe /C EXPAND " + filename + " " + tmpname + " > " + filename + '_' + inttostr(retryCount) + '.log';
 		//#else
-		string cmd = "EXPAND \"" + filename + "\" \"" + tmpName + "\"";
+		string cmd = "EXPAND \"";
+		cmd += filename;
+		cmd += "\" \"";
+		cmd += tmpName;
+		cmd += "\"";
 		//#endif
 
 		retryCount--;
@@ -138,7 +142,7 @@ u32 DecompressCabFile(const string &filename)
 
 			while (retryCount2)
 			{
-				HANDLE fileHandle = CreateFile(tmpName.c_str(), GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
+				const HANDLE fileHandle = CreateFile(tmpName.c_str(), GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
 				if (fileHandle != INVALID_HANDLE_VALUE)
 				{
 					result = GetFileSize(fileHandle, 0);
@@ -178,20 +182,20 @@ u32 DecompressCabFile(const string &filename)
 
 u32 DecompressFile(const string &filename, u32 compressionType)
 {
+	u32 result;
+
 	switch (compressionType)
 	{
 	case 0:
 	{
-		HANDLE fileHandle = CreateFile(filename.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
-		u32 result = 0;
+		const HANDLE fileHandle = CreateFile(filename.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
+		result = 0;
 
 		if (fileHandle != INVALID_HANDLE_VALUE)
 		{
 			result = GetFileSize(fileHandle, nullptr);
 			CloseHandle(fileHandle);
 		}
-
-		return result;
 	}
 	break;
 
@@ -200,14 +204,15 @@ u32 DecompressFile(const string &filename, u32 compressionType)
 	//    break;
 
 	case 2:
-		return DecompressCabFile(filename);
+		result = DecompressCabFile(filename);
 		break;
 
 	default:
 		Msg("! ERROR: unknown compression type: %u", compressionType);
-		return 0;
-		break;
+		result = 0;
 	}
+
+	return result;
 }
 
 //    function Init(logfun:TDecompressorLogFun) :boolean;

@@ -26,8 +26,8 @@ void Msg(const char* format, ...)
 	va_list mark;
 	string1024 buf;
 	va_start(mark, format);
-	int sz = _vsnprintf_s(buf, sizeof(buf) - 1, format, mark);
-	buf[sizeof(buf) - 1] = 0;
+	const int sz = _vsnprintf_s(buf, sizeof(buf) - 1, format, mark);
+	buf[sizeof(buf) - 1] = '\0';
 	va_end(mark);
 	
 	if (sz)

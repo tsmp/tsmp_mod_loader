@@ -530,7 +530,7 @@ namespace Implementation1
 
     u32 CalcCrc32(u32 prevCrc, const void* M, u32 bytes)
     {
-        const u32* M32 = (const u32*)M;
+        const u32* M32 = static_cast<const u32*>(M);
         u32 R = prevCrc;
 
         for (; bytes >= 16; bytes -= 16)
@@ -539,39 +539,39 @@ namespace Implementation1
             const u32 R2 = *M32++;
             const u32 R3 = *M32++;
             const u32 R4 = *M32++;
-            R = CrcTable[0 * 256 + uint8_t(R4 >> 24)] ^
-                CrcTable[1 * 256 + uint8_t(R4 >> 16)] ^
-                CrcTable[2 * 256 + uint8_t(R4 >> 8)] ^
-                CrcTable[3 * 256 + uint8_t(R4 >> 0)] ^
-                CrcTable[4 * 256 + uint8_t(R3 >> 24)] ^
-                CrcTable[5 * 256 + uint8_t(R3 >> 16)] ^
-                CrcTable[6 * 256 + uint8_t(R3 >> 8)] ^
-                CrcTable[7 * 256 + uint8_t(R3 >> 0)] ^
-                CrcTable[8 * 256 + uint8_t(R2 >> 24)] ^
-                CrcTable[9 * 256 + uint8_t(R2 >> 16)] ^
-                CrcTable[10 * 256 + uint8_t(R2 >> 8)] ^
-                CrcTable[11 * 256 + uint8_t(R2 >> 0)] ^
-                CrcTable[12 * 256 + uint8_t(R >> 24)] ^
-                CrcTable[13 * 256 + uint8_t(R >> 16)] ^
-                CrcTable[14 * 256 + uint8_t(R >> 8)] ^
-                CrcTable[15 * 256 + uint8_t(R >> 0)];
+            R = CrcTable[0 * 256 + static_cast<uint8_t>(R4 >> 24)] ^
+                CrcTable[1 * 256 + static_cast<uint8_t>(R4 >> 16)] ^
+                CrcTable[2 * 256 + static_cast<uint8_t>(R4 >> 8)] ^
+                CrcTable[3 * 256 + static_cast<uint8_t>(R4 >> 0)] ^
+                CrcTable[4 * 256 + static_cast<uint8_t>(R3 >> 24)] ^
+                CrcTable[5 * 256 + static_cast<uint8_t>(R3 >> 16)] ^
+                CrcTable[6 * 256 + static_cast<uint8_t>(R3 >> 8)] ^
+                CrcTable[7 * 256 + static_cast<uint8_t>(R3 >> 0)] ^
+                CrcTable[8 * 256 + static_cast<uint8_t>(R2 >> 24)] ^
+                CrcTable[9 * 256 + static_cast<uint8_t>(R2 >> 16)] ^
+                CrcTable[10 * 256 + static_cast<uint8_t>(R2 >> 8)] ^
+                CrcTable[11 * 256 + static_cast<uint8_t>(R2 >> 0)] ^
+                CrcTable[12 * 256 + static_cast<uint8_t>(R >> 24)] ^
+                CrcTable[13 * 256 + static_cast<uint8_t>(R >> 16)] ^
+                CrcTable[14 * 256 + static_cast<uint8_t>(R >> 8)] ^
+                CrcTable[15 * 256 + static_cast<uint8_t>(R >> 0)];
         }
 
-        const uint8_t* M8 = (const uint8_t*)M32;
+        auto M8 = reinterpret_cast<const uint8_t*>(M32);
 
         for (; bytes; --bytes)        
-            R = (R >> 8) ^ CrcTable[uint8_t(R ^ *M8++)];
+            R = (R >> 8) ^ CrcTable[static_cast<uint8_t>(R ^ *M8++)];
 
         return ~R;
     }
 
     bool CalcFileChecks(FZCheckParams &OutCheckParams, HANDLE hFile)
     {
-        HANDLE hFileMap = CreateFileMapping(hFile, NULL, PAGE_READONLY, 0, 0, NULL);
+        const HANDLE hFileMap = CreateFileMapping(hFile, NULL, PAGE_READONLY, 0, 0, NULL);
         if (!hFileMap)
             return false;
 
-        uint8_t* ptrInFile = (uint8_t*)MapViewOfFile(hFileMap, FILE_MAP_READ, 0, 0, 0);
+        const auto ptrInFile = static_cast<uint8_t*>(MapViewOfFile(hFileMap, FILE_MAP_READ, 0, 0, 0));
 
         if (!ptrInFile)
         {
@@ -667,7 +667,7 @@ namespace Implementation2
         }
 
         CRC32Init();
-        u32 crc = 0xFFFFFFFF;
+        const u32 crc = 0xFFFFFFFF;
         DWORD readbytes = 0;
 
         while (ReadFile(hFile, reinterpret_cast<void*>(ptr), WORK_SIZE, &readbytes, nullptr) && readbytes)
@@ -688,7 +688,7 @@ bool GetFileChecks(const string &path, FZCheckParams& OutCheckParams, bool needM
 	OutCheckParams.crc32 = 0;
 	OutCheckParams.md5 = "";
 
-	HANDLE fileHandle = CreateFile(path.c_str(), GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_SEQUENTIAL_SCAN, 0);
+	const HANDLE fileHandle = CreateFile(path.c_str(), GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_SEQUENTIAL_SCAN, 0);
 
 	if (fileHandle == INVALID_HANDLE_VALUE)
 	{

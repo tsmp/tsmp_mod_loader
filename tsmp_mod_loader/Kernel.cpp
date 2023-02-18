@@ -262,7 +262,7 @@ FZDllModFunResult ModLoadInternal(const char* modName, const char* modParams)
  */
 
 // —юда передаетс€ управление из волшебного пакета sysmsgs
-extern "C" __declspec(dllexport) u32 __stdcall ModLoad(char* modName, char* modParams)
+extern "C" __declspec(dllexport) u32 __stdcall ModLoad(const char* modName, const char* modParams)
 {
 	const HANDLE semaphore = CreateSemaphore(nullptr, 1, 1, FzLoaderSemaphoreName);
 	FZDllModFunResult result = FZ_DLL_MOD_FUN_FAILURE;

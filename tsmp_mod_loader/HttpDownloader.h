@@ -12,7 +12,7 @@ class FZFileDownloader
 {
 public:
 	FZFileDownloader(const string &url, const string &filename, u32 compressionType, FZDownloaderThread* thread);
-	virtual ~FZFileDownloader();
+	virtual ~FZFileDownloader() = default;
 
 	virtual bool IsDownloading() = 0;
 	bool IsBusy();
@@ -63,8 +63,8 @@ protected:
 class FZGameSpyFileDownloader : public FZFileDownloader
 {
 public:
-	FZGameSpyFileDownloader(string url, string filename, u32 compressionType, FZDownloaderThread* thread);
-	virtual ~FZGameSpyFileDownloader();
+	FZGameSpyFileDownloader(const string &url, const string &filename, u32 compressionType, FZDownloaderThread* thread);
+	~FZGameSpyFileDownloader() override;
 
 	bool IsDownloading() override;
 	void Flush() override;
@@ -76,7 +76,7 @@ class FZCurlFileDownloader : public FZFileDownloader
 
 public:
 	FZCurlFileDownloader(string url, string filename, u32 compressionType, FZDownloaderThread* thread);
-	~FZCurlFileDownloader();
+	~FZCurlFileDownloader() override;
 
 	bool IsDownloading() override;
 	void Flush() override;
@@ -102,8 +102,8 @@ public:
 
 	bool Add(FZDownloaderThreadCmd* item);
 	void Flush();
-	u32 Count() const;
-	FZDownloaderThreadCmd* Get(int i);
+	[[nodiscard]] u32 Count() const;
+	FZDownloaderThreadCmd* Get(u32 i);
 
 private:
 	vector<FZDownloaderThreadCmd*> m_Queue;
@@ -132,7 +132,7 @@ protected:
 	bool m_bGood;
 
 	void WaitForThreadTermination();
-	int FindDownloader(FZFileDownloader* dl);
+	int FindDownloader(const FZFileDownloader* dl);
 	void ProcessCommands();
 
 	friend void DownloaderThreadBody(FZDownloaderThread* th);
@@ -163,7 +163,7 @@ class FZGameSpyDownloaderThread : public FZDownloaderThread
 public:
 
 	FZGameSpyDownloaderThread();
-	virtual ~FZGameSpyDownloaderThread();
+	~FZGameSpyDownloaderThread() override;
 
 	FZFileDownloader* CreateDownloader(const string &url, const string &filename, u32 compressionType) override;
 	bool StartDownload(FZFileDownloader* dl) override;

@@ -11,7 +11,7 @@ bool TryHexToInt(const string &hexString, u32& outVal)
 
 bool GetNextParam(string & data, string & buf, char separator)
 {
-	int p = 0;
+	u32 p = 0;
 
 	for (u32 i = 1; i < data.size(); i++)
 	{
@@ -22,7 +22,7 @@ bool GetNextParam(string & data, string & buf, char separator)
 		}
 	}
 
-	if (p <= 0)
+	if (!p)
 		return false;
 
 	buf = string(data.begin(), data.end() - data.length() + p); // leftstr
@@ -43,7 +43,7 @@ FZIniFile::FZIniFile(string &filename): m_FileName(std::move(filename))
 		buffer.resize(bufferSize);
 
 		// пишет в buffer все секции из файла, разделенные через нуль терминатор. Возвращает bufferSize-2 если размера буфера не хватило.
-        u32 res = GetPrivateProfileString(0, 0, 0, buffer.data(), bufferSize, m_FileName.c_str());
+        const u32 res = GetPrivateProfileString(0, 0, 0, buffer.data(), bufferSize, m_FileName.c_str());
 		notEnoughBufferSize = (res == bufferSize - 2);
 	} while (notEnoughBufferSize);
 
@@ -63,7 +63,7 @@ int FZIniFile::GetIntDef(const string &section, const string &key, int def)
 	if(!InternalGetData(section, key, val))
 		return def;
 
-	return std::stoi(val.c_str());
+	return std::stoi(val);
 }
 
 string FZIniFile::GetStringDef(const string &section, const string &key, const string &def)
@@ -120,7 +120,7 @@ string FZIniFile::GetSectionName(u32 i)
 
 bool FZIniFile::InternalGetData(const string &section, const string &key, string &value)
 {
-	u32 res = 0;
+	u32 res;
 	u32 bufferSize = 128;
 
 	string buffer;
