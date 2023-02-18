@@ -57,8 +57,6 @@ const char* FsltxName = "fsgame.ltx";
 const char* UserltxName = "user.ltx";
 const char* UserdataDirName = "userdata\\";
 const char* EngineDirName = "bin\\";
-const char* PatchesDirName = "patches\\";
-const char* MpDirName = "mp\\";
 
 string BoolToStr(bool b)
 {
@@ -508,48 +506,6 @@ bool BuildFsGameInternal(const string &fileName, const FZFsLtxBuilderSettings &s
 	f << "$app_data_root$=false |false |$fs_root$|" << UserdataDirName << endl;
 	f << "$parent_app_data_root$=false |false|" << VersionAbstraction()->UpdatePath("$app_data_root$", "") << endl;
 	f << "$parent_game_root$=false|false|" << VersionAbstraction()->UpdatePath("$fs_root$", "") << endl;
-
-	if (settings.fullInstall)
-	{
-		f << "$arch_dir$=false| false| $fs_root$" << endl;
-		f << "$game_arch_mp$=false| false| $fs_root$| mp\\" << endl;
-		f << "$arch_dir_levels$=false| false| $fs_root$| levels\\" << endl;
-		f << "$arch_dir_resources$=false| false| $fs_root$| resources\\" << endl;
-		f << "$arch_dir_localization$=false| false| $fs_root$| localization\\" << endl;
-	}
-	else
-	{
-		if (VersionAbstraction()->PathExists("$arch_dir"))
-			f << "$arch_dir$=false| false|" << VersionAbstraction()->UpdatePath("$arch_dir$", "") << endl;
-
-		if (VersionAbstraction()->PathExists("$game_arch_mp$"))
-		{
-			//SACE3 обладает нехорошей привычкой писать сюда db-файлы, одна ошибка - и неработоспособный клиент
-			//У нас "безопасное" место для записи - это юзердата (даже в случае ошибки - брикнем мод, не игру)
-			//Маппим $game_arch_mp$ в юзердату, а чтобы игра подхватывала оригинальные файлы с картами -
-			//создадим еще одну запись
-			f << "$game_arch_mp$=false| false|$app_data_root$" << endl;
-			f << "$game_arch_mp_parent$=false| false|" << VersionAbstraction()->UpdatePath("$game_arch_mp$", "") << endl;
-		}
-
-		if (VersionAbstraction()->PathExists("$arch_dir_levels$"))
-			f << "$arch_dir_levels$=false| false|" << VersionAbstraction()->UpdatePath("$arch_dir_levels$", "") << endl;
-
-		if (VersionAbstraction()->PathExists("$arch_dir_resources$"))
-			f << "$arch_dir_resources$=false| false|" << VersionAbstraction()->UpdatePath("$arch_dir_resources$", "") << endl;
-
-		if (VersionAbstraction()->PathExists("$arch_dir_localization$"))
-			f << "$arch_dir_localization$=false| false|" << VersionAbstraction()->UpdatePath("$arch_dir_localization$", "") << endl;
-	}
-
-	if (VersionAbstraction()->PathExists("$arch_dir_patches$") && settings.sharePatchesDir)
-	{
-		f << "$arch_dir_patches$=false| false|" << VersionAbstraction()->UpdatePath("$arch_dir_patches$", "") << endl;
-		f << "$arch_dir_second_patches$=false|false|$fs_root$|patches\\" << endl;
-	}
-	else
-		f << "$arch_dir_patches$=false|false|$fs_root$|patches\\" << endl;
-
 	f << "$game_data$=false|true|$fs_root$|gamedata\\" << endl;
 	f << "$game_ai$=true|false|$game_data$|ai\\" << endl;
 	f << "$game_spawn$=true|false|$game_data$|spawns\\" << endl;
@@ -635,8 +591,6 @@ void PreprocessFiles(FZFiles &files, const string &modRoot)
 	files.AddIgnoredFile(EngineFilesListName);
 	u32 userdataDirStrLen = strlen(UserdataDirName);
 	u32 engineDirStrLen = strlen(EngineDirName);
-	u32 patchesDirStrLen = strlen(PatchesDirName);
-	u32 mpDirStrLen = strlen(MpDirName);
 
 	for (int i = files.EntriesCount() - 1; i >= 0; i--)
 	{
@@ -657,34 +611,6 @@ void PreprocessFiles(FZFiles &files, const string &modRoot)
 				filename = e->name;
 				filename.erase(0, engineDirStrLen);
 				src = core_root + filename;
-				dst = modRoot + e->name;
-
-				if (CopyFileIfValid(src, dst, e->target))
-					files.UpdateEntryAction(i, FZ_FILE_ACTION_NO);
-			}
-		}
-		else if (!strncmp(e->name.c_str(), PatchesDirName, patchesDirStrLen) && e->requiredAction == FZ_FILE_ACTION_DOWNLOAD)
-		{
-			if (!disablePreload && VersionAbstraction()->PathExists("$arch_dir_patches$"))
-			{
-				//Проверим, есть ли уже такой файл в текущей копии игры
-				filename = e->name;
-				filename.erase(0, patchesDirStrLen);
-				src = VersionAbstraction()->UpdatePath("$arch_dir_patches$", filename);
-				dst = modRoot + e->name;
-
-				if (CopyFileIfValid(src, dst, e->target))
-					files.UpdateEntryAction(i, FZ_FILE_ACTION_NO);
-			}
-		}
-		else if (!strncmp(e->name.c_str(), MpDirName, mpDirStrLen) && e->requiredAction == FZ_FILE_ACTION_DOWNLOAD)
-		{
-			if (!disablePreload && VersionAbstraction()->PathExists("$game_arch_mp$"))
-			{
-				//Проверим, есть ли уже такой файл в текущей копии игры
-				filename = e->name;
-				filename.erase(0, mpDirStrLen);
-				src = VersionAbstraction()->UpdatePath("$game_arch_mp$", filename);
 				dst = modRoot + e->name;
 
 				if (CopyFileIfValid(src, dst, e->target))
