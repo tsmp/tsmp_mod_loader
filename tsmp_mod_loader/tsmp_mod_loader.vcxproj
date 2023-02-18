@@ -15,7 +15,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="CommandLineParser.cpp" />
+    <ClCompile Include="CommandLineParser.h" />
     <ClCompile Include="Crc32.cpp" />
     <ClCompile Include="HttpDownloader.cpp" />
     <ClCompile Include="FileManager.cpp" />

@@ -2,6 +2,7 @@
 #include "lowlevel/Abstractions.h"
 #include "FileManager.h"
 #include "HttpDownloader.h"
+#include "CommandLineParser.h"
 #include "IniFile.h"
 #include <shlwapi.h>
 #include <algorithm>
@@ -11,23 +12,8 @@
 
 using std::endl;
 
-extern bool ForceShowMessage(const string &cmd);
-extern bool IsGameSpyDlForced(const string &cmdline);
-extern bool IsMirrorsDisabled(const string &cmdline);
-extern string GetServerIp(const string &cmdline);
-extern int GetServerPort(const string &cmdline);
-extern bool IsCmdLineNameNameNeeded(const string &cmdline);
-extern string GetCustomBinUrl(const string &cmdline);
-extern string GetPassword(const string &cmdline);
-extern string GetCustomGamedataUrl(const string &cmdline);
-extern string GetExeName(const string &cmdline, const string &defVal);
-extern bool IsFullInstallMode(const string &cmdline);
-extern bool IsSharedPatches(const string &cmdline);
-extern string GetConfigsDir(const string &cmdline, const string &defVal);
-
 extern bool WinapiDownloadFile(const char* url, const char* path);
 extern bool ForceDirectories(const string &path);
-extern bool SkipFullFileCheck(const string &cmdline);
 
 extern std::string g_ModParams;
 using FZMasterLinkListAddr = vector<string>;

@@ -1,51 +1,52 @@
+#pragma once
 #include "Common.h"
 
-bool Find(const char* strToSearch, const string &sourceStr, u32 &position)
+inline bool Find(const char* strToSearch, const string &sourceStr, u32 &position)
 {
     position = sourceStr.find(strToSearch);
     return position != string::npos;
 }
 
-bool Find(const char* strToSearch, const string &sourceStr)
+inline bool Find(const char* strToSearch, const string &sourceStr)
 {
-    u32 position = sourceStr.find(strToSearch);
+    const u32 position = sourceStr.find(strToSearch);
     return position != string::npos;
 }
 
-string ExtractArgString(u32 startPos, const char* argKey, const string &params)
+inline string ExtractArgString(const u32 startPos, const char* argKey, const string &params)
 {
     string result;
-    u32 paramsSize = params.size();
+    const u32 paramsSize = params.size();
 
     for (u32 i = startPos + strlen(argKey); i < paramsSize; ++i)
     {
         if (params[i] == ' ')
             break;
-        else
-            result += params[i];
+
+        result += params[i];
     }
 
     return result;
 }
 
-int GetServerPort(const string &cmdline)
+inline int GetServerPort(const string &cmdline)
 {
     const char* portArg = "-srvport ";
-    string modParams = ' ' + cmdline + ' ';
+    const string modParams = ' ' + cmdline + ' ';
 
     u32 pos;
 
 	if (!Find(portArg, modParams, pos))
 		return -1;
 
-    string portStr = ExtractArgString(pos, portArg, modParams);
+    const string portStr = ExtractArgString(pos, portArg, modParams);
 	return stoi(portStr);
 }
 
-string GetConfigsDir(const string &cmdline, const string &defVal)
+inline string GetConfigsDir(const string &cmdline, const string &defVal)
 {
     const char* configsKey = " -configsdir ";
-    string modParams = ' ' + cmdline + ' ';
+    const string modParams = ' ' + cmdline + ' ';
     u32 pos;
 
     if (!Find(configsKey, modParams, pos))
@@ -54,10 +55,10 @@ string GetConfigsDir(const string &cmdline, const string &defVal)
     return ExtractArgString(pos, configsKey, modParams);
 }
 
-string GetExeName(const string &cmdline, const string &defVal)
+inline string GetExeName(const string &cmdline, const string &defVal)
 {
     const char* exeKey = " -exename ";
-    string modParams = ' ' + cmdline + ' ';
+    const string modParams = ' ' + cmdline + ' ';
     u32 pos;
 
     if (!Find(exeKey, modParams, pos))
@@ -66,10 +67,10 @@ string GetExeName(const string &cmdline, const string &defVal)
     return ExtractArgString(pos, exeKey, modParams);
 }
 
-string GetCustomGamedataUrl(const string &cmdline)
+inline string GetCustomGamedataUrl(const string &cmdline)
 {
     const char* gamedataKey = " -gamelist ";
-    string modParams = ' ' + cmdline + ' ';
+    const string modParams = ' ' + cmdline + ' ';
     u32 pos;
 
     if (!Find(gamedataKey, modParams, pos))
@@ -78,10 +79,10 @@ string GetCustomGamedataUrl(const string &cmdline)
     return ExtractArgString(pos, gamedataKey, modParams);
 }
 
-string GetCustomBinUrl(const string &cmdline)
+inline string GetCustomBinUrl(const string &cmdline)
 {
     const char* binKey = " -binlist ";
-    string modParams = ' ' + cmdline + ' ';
+    const string modParams = ' ' + cmdline + ' ';
     u32 pos;
 
     if (!Find(binKey, modParams, pos))
@@ -90,10 +91,10 @@ string GetCustomBinUrl(const string &cmdline)
     return ExtractArgString(pos, binKey, modParams);
 }
 
-string GetPassword(const string &cmdline)
+inline string GetPassword(const string &cmdline)
 {
     const char* pswKey = " -psw ";
-    string modParams = ' ' + cmdline + ' ';
+    const string modParams = ' ' + cmdline + ' ';
     u32 pos;
 
     if (!Find(pswKey, modParams, pos))
@@ -102,12 +103,12 @@ string GetPassword(const string &cmdline)
     return ExtractArgString(pos, pswKey, modParams);
 }
 
-string GetServerIp(const string &cmdline)
+inline string GetServerIp(const string &cmdline)
 {
     const char* SRV_IP = "-srv ";
     const char* SRV_DOMAIN= "-srvname ";
 
-    string modParams = cmdline + ' ';
+    const string modParams = cmdline + ' ';
     u32 ipPos;
 
     if (Find(SRV_IP, modParams, ipPos))
@@ -160,37 +161,37 @@ string GetServerIp(const string &cmdline)
 //end;
 }
 
-bool IsGameSpyDlForced(const string &cmdline)
+inline bool IsGameSpyDlForced(const string &cmdline)
 {
     return Find(" -gamespymode ", ' ' + cmdline + ' ');
 }
 
-bool IsSharedPatches(const string &cmdline)
+inline bool IsSharedPatches(const string &cmdline)
 {
     return Find(" -sharedpatches ", ' ' + cmdline + ' ');
 }
 
-bool IsCmdLineNameNameNeeded(const string &cmdline)
+inline bool IsCmdLineNameNameNeeded(const string &cmdline)
 {
     return Find(" -includename ", ' ' + cmdline + ' ');
 }
 
-bool ForceShowMessage(const string &cmdline)
+inline bool ForceShowMessage(const string &cmdline)
 {
     return Find(" -preservemessage ", ' ' + cmdline + ' ');
 }
 
-bool IsMirrorsDisabled(const string &cmdline)
+inline bool IsMirrorsDisabled(const string &cmdline)
 {
     return Find(" -nomirrors ", ' ' + cmdline + ' ');
 }
 
-bool IsFullInstallMode(const string &cmdline)
+inline bool IsFullInstallMode(const string &cmdline)
 {
     return Find(" -fullinstall ", ' ' + cmdline + ' ');
 }
 
-bool SkipFullFileCheck(const string &cmdline)
+inline bool SkipFullFileCheck(const string &cmdline)
 {
     return Find(" -skipfullcheck ", ' ' + cmdline + ' ');
 }

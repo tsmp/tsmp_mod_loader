@@ -27,7 +27,7 @@
     <ClCompile Include="Log.cpp">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
-    <ClCompile Include="CommandLineParser.cpp">
+    <ClCompile Include="CommandLineParser.h">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
     <ClCompile Include="FileManager.cpp">
