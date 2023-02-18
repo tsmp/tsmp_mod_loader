@@ -25,7 +25,6 @@
     <ClCompile Include="lowlevel\Abstractions.cpp" />
     <ClCompile Include="lowlevel\Decompressor.cpp" />
     <ClCompile Include="mod_loader.cpp" />
-    <ClCompile Include="MutexHunter.cpp" />
     <ClCompile Include="WinapiDownloadFile.cpp" />
   </ItemGroup>
   <ItemGroup>

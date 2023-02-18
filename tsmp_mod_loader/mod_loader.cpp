@@ -26,7 +26,6 @@ extern bool IsSharedPatches(const string &cmdline);
 extern string GetConfigsDir(const string &cmdline, const string &defVal);
 
 extern bool WinapiDownloadFile(const char* url, const char* path);
-extern void KillMutex();
 extern bool ForceDirectories(const string &path);
 extern bool SkipFullFileCheck(const string &cmdline);
 
@@ -892,22 +891,17 @@ bool Finalize(const FZModSettings &settings)
 	FillMemory(&pi, sizeof(pi), 0);
 	si.cb = sizeof(si);
 
-	//Прибьем блокирующий запуск нескольких копий сталкера мьютекс
-	KillMutex();
-
-	//Запустим клиента
+	// Запустим клиента
 	if (!CreateProcess(cmdapp.c_str(), cmdline.data(), 0, 0, false, CREATE_SUSPENDED, 0, workingdir.c_str(), &si, &pi))
 	{
 		Msg("! Cannot run application");
 		return false;
 	}
-	else
-	{
-		ResumeThread(pi.hThread);
-		CloseHandle(pi.hProcess);
-		CloseHandle(pi.hThread);
-		return true;
-	}
+
+	ResumeThread(pi.hThread);
+	CloseHandle(pi.hProcess);
+	CloseHandle(pi.hThread);
+	return true;
 }
 
 bool GetFileLists(FZFiles &files_cp, FZFiles& files, FZModSettings &mod_settings, FZMasterListApproveType masterlinks_parse_result, FZModMirrorsSettings &mirrors)

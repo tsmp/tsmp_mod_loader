@@ -39,9 +39,6 @@
     <ClCompile Include="IniFile.cpp">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
-    <ClCompile Include="MutexHunter.cpp">
-      <Filter>Исходные файлы</Filter>
-    </ClCompile>
     <ClCompile Include="WinapiDownloadFile.cpp">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
