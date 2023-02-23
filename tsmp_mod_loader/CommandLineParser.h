@@ -195,3 +195,8 @@ inline bool SkipFullFileCheck(const string &cmdline)
 {
     return Find(" -skipfullcheck ", ' ' + cmdline + ' ');
 }
+
+inline bool Allow64bitEngine(const string& cmdline)
+{
+    return Find(" -allow64bitengine ", ' ' + cmdline + ' ');
+}

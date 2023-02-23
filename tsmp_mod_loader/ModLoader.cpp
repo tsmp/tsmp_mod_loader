@@ -68,6 +68,13 @@ bool FileExists(const string &path)
 	return PathFileExists(path.c_str());
 }
 
+bool Is64BitSystem()
+{
+	SYSTEM_INFO systemInfo;
+	GetNativeSystemInfo(&systemInfo);
+	return systemInfo.wProcessorArchitecture == PROCESSOR_ARCHITECTURE_AMD64;
+}
+
 FZDownloaderThread* CreateDownloaderThreadForUrl(const string &url)
 {
 	//const char* httpsStr = "https";
@@ -846,10 +853,25 @@ bool GetFileLists(const FZFiles &filesCp, FZFiles& files, FZModSettings &modSett
 
 			if (!modSettings.binlistUrl.empty())
 			{
-				if (!DownloadAndApplyFileList(modSettings.binlistUrl, EngineFilesListName, modSettings.rootDir, masterlinksParseResult, files, false))
+				bool x64engineApplied = false;
+
+				if(Allow64bitEngine(g_ModParams) && Is64BitSystem())
 				{
-					Msg("! Applying engine files list failed!");
-					flag = false;
+					string url = modSettings.binlistUrl + "64";
+					Msg("trying to apply x64 engine");
+
+					x64engineApplied = DownloadAndApplyFileList(url, EngineFilesListName, modSettings.rootDir, masterlinksParseResult, files, false);
+				}
+
+				if (x64engineApplied)
+					Msg("- x64 engine applied!");
+				else
+				{
+					if (!DownloadAndApplyFileList(modSettings.binlistUrl, EngineFilesListName, modSettings.rootDir, masterlinksParseResult, files, false))
+					{
+						Msg("! Applying engine files list failed!");
+						flag = false;
+					}
 				}
 			}
 		}
@@ -901,6 +923,7 @@ bool PrepareGUI()
 bool InitModSettings(FZModSettings& modSettings, const string& modName, const string& modPath)
 {
 	modSettings.modName = modName;
+	g_SkipFullFileCheck = SkipFullFileCheck(g_ModParams);
 
 	//Получим путь к корневой (установочной) директории мода
 	modSettings.rootDir = VersionAbstraction()->UpdatePath("$app_data_root$", modPath);
@@ -1016,7 +1039,6 @@ bool DoWork(const string &modName, const string &modPath)
 	if (!PrepareGUI())
 		return false;
 
-	g_SkipFullFileCheck = SkipFullFileCheck(g_ModParams);
 	FZModSettings modSettings;
 
 	if (!InitModSettings(modSettings, modName, modPath))
