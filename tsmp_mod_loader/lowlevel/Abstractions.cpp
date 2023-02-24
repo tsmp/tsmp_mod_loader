@@ -89,6 +89,10 @@ public:
 
 	string GetCoreParams() override;
 	string GetCoreApplicationPath() override;
+
+	string GetCoreAppName() override;
+	string GetCoreUserName() override;
+
 	void ExecuteConsoleCommand(const string &cmd) override;
 
 	string GetEngineExeFileName() override;
@@ -440,6 +444,16 @@ string FZBaseGameVersion::GetCoreParams()
 string FZBaseGameVersion::GetCoreApplicationPath()
 {
 	return m_pCore->ApplicationPath;
+}
+
+string FZBaseGameVersion::GetCoreAppName()
+{
+	return m_pCore->ApplicationName;
+}
+
+string FZBaseGameVersion::GetCoreUserName()
+{
+	return m_pCore->UserName;
 }
 
 void FZBaseGameVersion::ExecuteConsoleCommand(const string &cmd)

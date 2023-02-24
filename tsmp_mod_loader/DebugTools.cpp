@@ -1,5 +1,6 @@
 #include "Common.h"
 #include <minidumpapiset.h>
+#include "lowlevel/Abstractions.h"
 
 #define BUGTRAP_EXPORTS // for static linking
 #include "..\BugTrap\BugTrap.h"
@@ -20,6 +21,27 @@ void uniassert(const bool cond, const string& descr)
 	TerminateProcess(GetCurrentProcess(), 1);
 }
 
+void AttachLogToReport()
+{
+	FZAbstractGameVersion* game = VersionAbstraction();
+
+	if (!game)
+		return;
+
+	game->ExecuteConsoleCommand("flush");
+	string logName = game->GetCoreAppName() + "_" + game->GetCoreUserName() + ".log";
+
+	if(game->PathExists("$logs$"))
+		logName = game->UpdatePath("$logs$", logName);
+
+	BT_AddLogFile(logName.c_str());
+}
+
+void CALLBACK PreErrorHandler(INT_PTR)
+{
+	AttachLogToReport();
+}
+
 void SetErrorHandler()
 {
 	// Install bugtrap exceptions filter
@@ -32,6 +54,7 @@ void SetErrorHandler()
 	BT_SetActivityType(BTA_SAVEREPORT);
 #endif
 
+	BT_SetPreErrHandler(PreErrorHandler, 0);
 	BT_SetAppName("TSMP mod loader");
 	BT_SetReportFormat(BTRF_TEXT);
 	BT_SetFlags(BTF_DETAILEDMODE | BTF_ATTACHREPORT);
