@@ -5,6 +5,9 @@ const char* FzLoaderSemaphoreName = "Local\\FREEZONE_STK_MOD_LOADER_SEMAPHORE";
 const char* FzLoaderModulesMutexName = "Local\\FREEZONE_STK_MOD_LOADER_MODULES_MUTEX";
 const string ModDirPrefix = ".svn\\";
 
+extern void SetErrorHandler();
+extern BOOL BugtrapDllMain(HINSTANCE hModule, DWORD fdwReason, PVOID pvReserved);
+
 enum FZDllModFunResult : u32
 {
 	FZ_DLL_MOD_FUN_SUCCESS_LOCK = 0,    //Мод успешно загрузился, требуется залочить клиента по name_lock
@@ -22,8 +25,9 @@ string g_ModRelPath;
 string g_ModName;
 string g_ModParams;
 
-BOOL APIENTRY DllMain(HMODULE hModule, DWORD, LPVOID)
+BOOL APIENTRY DllMain(HMODULE hModule, DWORD dwReason, LPVOID pvReserved)
 {
+	BugtrapDllMain(hModule, dwReason, pvReserved); // to init bugtrap
 	g_hCurrentModule = hModule;
 	return TRUE;
 }
@@ -125,6 +129,8 @@ u32 ThreadBody()
 
 bool RunModLoad()
 {
+	SetErrorHandler();
+
 	char path[MAX_PATH];
 	GetModuleFileName(g_hCurrentModule, path, MAX_PATH);
 

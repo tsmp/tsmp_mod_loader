@@ -1,6 +1,8 @@
 #include "..\Common.h"
 #include "Abstractions.h"
 
+extern void uniassert(bool cond, const string& descr);
+
 // TODO: implement FZUnknownGameVersion and maybe saving log to another file
 
 enum class FZ_GAME_VERSION
@@ -278,15 +280,6 @@ public:
 u32 AtomicExchange(u32* addr, u32 val)
 {
 	return InterlockedExchange(addr, val); // TODO: check
-}
-
-void uniassert(const bool cond, const string &descr)
-{
-	if (cond)
-		return;
-
-	MessageBox(0, descr.c_str(), "Assertion failed!", MB_OK | MB_ICONERROR);
-	TerminateProcess(GetCurrentProcess(), 1);
 }
 
 string CConsoleGetStringFake(const string &cmd) { return "Unknown"; }
