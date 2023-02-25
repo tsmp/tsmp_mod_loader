@@ -1,7 +1,7 @@
 #include "Common.h"
 #include <minidumpapiset.h>
 
-#define SEND_ERROR_REPORTS
+//#define SEND_ERROR_REPORTS
 
 void DebugInvoke()
 {

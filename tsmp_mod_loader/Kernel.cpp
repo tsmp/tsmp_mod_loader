@@ -76,6 +76,7 @@ bool ThreadBodyInternal()
 		}
 
 		VersionAbstraction()->StopVisualDownload();
+		uniassert(false, "downloading failed");
 	}
 
 	Msg("- Releasing resources");

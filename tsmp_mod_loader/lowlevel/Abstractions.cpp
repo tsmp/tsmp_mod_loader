@@ -1,8 +1,6 @@
 #include "..\Common.h"
 #include "Abstractions.h"
 
-extern void uniassert(bool cond, const string& descr);
-
 // TODO: implement FZUnknownGameVersion and maybe saving log to another file
 
 enum class FZ_GAME_VERSION
@@ -1124,6 +1122,8 @@ FZAbstractGameVersion* FZGameVersionCreator::DetermineGameVersion()
 	case FZ_GAME_VERSION::FZ_VER_SOC_10006_V2:
 		result = new FZGameVersion10006_v2();
 		break;
+	default:
+		uniassert(false, "can not init abstraction");
 	}
 
 	return result;
