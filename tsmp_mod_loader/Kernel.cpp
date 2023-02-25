@@ -6,7 +6,6 @@ const char* FzLoaderModulesMutexName = "Local\\FREEZONE_STK_MOD_LOADER_MODULES_M
 const string ModDirPrefix = ".svn\\";
 
 extern void SetErrorHandler();
-extern BOOL BugtrapDllMain(HINSTANCE hModule, DWORD fdwReason, PVOID pvReserved);
 
 enum FZDllModFunResult : u32
 {
@@ -27,7 +26,6 @@ string g_ModParams;
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD dwReason, LPVOID pvReserved)
 {
-	BugtrapDllMain(hModule, dwReason, pvReserved); // to init bugtrap
 	g_hCurrentModule = hModule;
 	return TRUE;
 }
@@ -129,8 +127,6 @@ u32 ThreadBody()
 
 bool RunModLoad()
 {
-	SetErrorHandler();
-
 	char path[MAX_PATH];
 	GetModuleFileName(g_hCurrentModule, path, MAX_PATH);
 
@@ -270,6 +266,7 @@ FZDllModFunResult ModLoadInternal(const char* modName, const char* modParams)
 // —юда передаетс€ управление из волшебного пакета sysmsgs
 extern "C" __declspec(dllexport) u32 __stdcall ModLoad(const char* modName, const char* modParams)
 {
+	SetErrorHandler();
 	const HANDLE semaphore = CreateSemaphore(nullptr, 1, 1, FzLoaderSemaphoreName);
 	FZDllModFunResult result = FZ_DLL_MOD_FUN_FAILURE;
 

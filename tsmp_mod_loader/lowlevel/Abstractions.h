@@ -9,9 +9,6 @@ public:
     virtual string GetCoreParams() = 0;
     virtual string GetCoreApplicationPath() = 0;
 
-    virtual string GetCoreAppName() = 0;
-    virtual string GetCoreUserName() = 0;
-
     virtual void ShowMpMainMenu() = 0;
     virtual void AssignStatus(const string &str) = 0;
 

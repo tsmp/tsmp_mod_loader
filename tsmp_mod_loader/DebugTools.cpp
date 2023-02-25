@@ -1,62 +1,41 @@
 #include "Common.h"
 #include <minidumpapiset.h>
-#include "lowlevel/Abstractions.h"
 
-#define BUGTRAP_EXPORTS // for static linking
-#include "..\BugTrap\BugTrap.h"
+#define SEND_ERROR_REPORTS
 
-#pragma comment(lib, "BugTrap.lib")
-#pragma comment(lib, "ws2_32.lib")
-#pragma comment(lib, "comctl32.lib")
-#pragma comment(lib, "Version.lib")
-
-//#define SEND_ERROR_REPORTS
+void DebugInvoke()
+{
+	__asm int 3;
+}
 
 void uniassert(const bool cond, const string& descr)
 {
 	if (cond)
 		return;
 
+	DebugInvoke();
 	MessageBox(0, descr.c_str(), "Assertion failed!", MB_OK | MB_ICONERROR);
-	TerminateProcess(GetCurrentProcess(), 1);
-}
-
-void AttachLogToReport()
-{
-	FZAbstractGameVersion* game = VersionAbstraction();
-
-	if (!game)
-		return;
-
-	game->ExecuteConsoleCommand("flush");
-	string logName = game->GetCoreAppName() + "_" + game->GetCoreUserName() + ".log";
-
-	if(game->PathExists("$logs$"))
-		logName = game->UpdatePath("$logs$", logName);
-
-	BT_AddLogFile(logName.c_str());
-}
-
-void CALLBACK PreErrorHandler(INT_PTR)
-{
-	AttachLogToReport();
 }
 
 void SetErrorHandler()
 {
-	// Install bugtrap exceptions filter
-	BT_InstallSehFilter();
-
 #ifdef SEND_ERROR_REPORTS
-	BT_SetSupportServer("192.162.247.202", 9999);
-	BT_SetActivityType(BTA_SENDREPORT);	
-#else
-	BT_SetActivityType(BTA_SAVEREPORT);
-#endif
+	using BtSetAppName = void(__stdcall*)(LPCTSTR pszAppName);
+	using BtSetSupportSrv = void(__stdcall*)(LPCTSTR pszSupportHost, SHORT nSupportPort);
+	using BtSetActivityType = void(__stdcall*)(DWORD eActivityType);
 
-	BT_SetPreErrHandler(PreErrorHandler, 0);
-	BT_SetAppName("TSMP mod loader");
-	BT_SetReportFormat(BTRF_TEXT);
-	BT_SetFlags(BTF_DETAILEDMODE | BTF_ATTACHREPORT);
-	BT_SetDumpType(MiniDumpWithDataSegs | MiniDumpWithIndirectlyReferencedMemory | 0);
+	const DWORD BTA_SENDREPORT = 4;
+	const HMODULE bt = GetModuleHandle("BugTrap.dll");
+
+	if(!bt)
+		return;
+
+	const auto btSetAppName = reinterpret_cast<BtSetAppName>(GetProcAddress(bt, "BT_SetAppName"));
+	const auto btSetActivityType = reinterpret_cast<BtSetActivityType>(GetProcAddress(bt, "BT_SetActivityType"));
+	const auto btSetSupportSrv = reinterpret_cast<BtSetSupportSrv>(GetProcAddress(bt, "BT_SetSupportServer"));
+
+	btSetAppName("TSMP mod loader");
+	btSetActivityType(BTA_SENDREPORT);
+	btSetSupportSrv("192.162.247.202", 9999);
+#endif
 }
