@@ -200,3 +200,8 @@ inline bool Allow64bitEngine(const string& cmdline)
 {
     return Find(" -allow64bitengine ", ' ' + cmdline + ' ');
 }
+
+inline bool AllowErrorReportsSend(const string& cmdline)
+{
+    return Find(" -sendErrorRepots ", ' ' + cmdline + ' ');
+}

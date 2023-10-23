@@ -1,11 +1,12 @@
 #include "Common.h"
 #include "lowlevel/Abstractions.h"
+#include "CommandLineParser.h"
 
 const char* FzLoaderSemaphoreName = "Local\\FREEZONE_STK_MOD_LOADER_SEMAPHORE";
 const char* FzLoaderModulesMutexName = "Local\\FREEZONE_STK_MOD_LOADER_MODULES_MUTEX";
 const string ModDirPrefix = ".svn\\";
 
-extern void SetErrorHandler();
+extern void SetErrorHandler(bool send);
 
 enum FZDllModFunResult : u32
 {
@@ -210,6 +211,8 @@ FZDllModFunResult ModLoadInternal(const char* modName, const char* modParams)
 			g_ModName = modName;
 			g_ModParams = modParams;
 
+			SetErrorHandler(AllowErrorReportsSend(g_ModParams));
+
 			//Благодаря этому хаку с префиксом, игра не полезет подгружать файлы мода при запуске оригинального клиента
 			g_ModRelPath = ModDirPrefix;
 			g_ModRelPath += modName;
@@ -267,7 +270,7 @@ FZDllModFunResult ModLoadInternal(const char* modName, const char* modParams)
 // Сюда передается управление из волшебного пакета sysmsgs
 extern "C" __declspec(dllexport) u32 __stdcall ModLoad(const char* modName, const char* modParams)
 {
-	SetErrorHandler();
+	SetErrorHandler(true);
 	const HANDLE semaphore = CreateSemaphore(nullptr, 1, 1, FzLoaderSemaphoreName);
 	FZDllModFunResult result = FZ_DLL_MOD_FUN_FAILURE;
 

@@ -17,7 +17,7 @@ void uniassert(const bool cond, const string& descr)
 	MessageBox(0, descr.c_str(), "Assertion failed!", MB_OK | MB_ICONERROR);
 }
 
-void SetErrorHandler()
+void SetErrorHandler(bool send)
 {
 #ifdef SEND_ERROR_REPORTS
 	using BtSetAppName = void(__stdcall*)(LPCTSTR pszAppName);
@@ -25,6 +25,7 @@ void SetErrorHandler()
 	using BtSetActivityType = void(__stdcall*)(DWORD eActivityType);
 
 	const DWORD BTA_SENDREPORT = 4;
+	const DWORD BTA_SAVEREPORT = 2;
 	const HMODULE bt = GetModuleHandle("BugTrap.dll");
 
 	if(!bt)
@@ -35,7 +36,7 @@ void SetErrorHandler()
 	const auto btSetSupportSrv = reinterpret_cast<BtSetSupportSrv>(GetProcAddress(bt, "BT_SetSupportServer"));
 
 	btSetAppName("TSMP mod loader");
-	btSetActivityType(BTA_SENDREPORT);
+	btSetActivityType(send ? BTA_SENDREPORT : BTA_SAVEREPORT);
 	btSetSupportSrv("192.162.247.202", 9999);
 #endif
 }
