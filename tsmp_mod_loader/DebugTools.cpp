@@ -2,6 +2,7 @@
 #include <minidumpapiset.h>
 
 //#define SEND_ERROR_REPORTS
+extern int LoaderVersion;
 
 void DebugInvoke()
 {
@@ -35,7 +36,9 @@ void SetErrorHandler(bool send)
 	const auto btSetActivityType = reinterpret_cast<BtSetActivityType>(GetProcAddress(bt, "BT_SetActivityType"));
 	const auto btSetSupportSrv = reinterpret_cast<BtSetSupportSrv>(GetProcAddress(bt, "BT_SetSupportServer"));
 
-	btSetAppName("TSMP mod loader");
+	std::string appName = "TSMP mod loader v" + std::to_string(LoaderVersion);
+
+	btSetAppName(appName.c_str());
 	btSetActivityType(send ? BTA_SENDREPORT : BTA_SAVEREPORT);
 	btSetSupportSrv("192.162.247.202", 9999);
 #endif

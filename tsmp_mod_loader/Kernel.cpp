@@ -8,6 +8,8 @@ const string ModDirPrefix = ".svn\\";
 
 extern void SetErrorHandler(bool send);
 
+int LoaderVersion = 4;
+
 enum FZDllModFunResult : u32
 {
 	FZ_DLL_MOD_FUN_SUCCESS_LOCK = 0,    //Мод успешно загрузился, требуется залочить клиента по name_lock
@@ -52,7 +54,7 @@ bool ThreadBodyInternal()
 		return false;
 	}
 
-	Msg("- FreeZone Mod Loader TSMP v2");
+	Msg("- FreeZone Mod Loader TSMP v%d", LoaderVersion);
 	Msg("- Build date: %s", __DATE__);
 	Msg("- Mod name is %s", g_ModName.c_str());
 	Msg("- Mod params %s", g_ModParams.c_str());
