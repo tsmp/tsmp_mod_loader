@@ -78,8 +78,9 @@ bool ThreadBodyInternal()
 			Sleep(1);
 		}
 
+		const bool cancelled = VersionAbstraction()->CheckForUserCancelDownload();
 		VersionAbstraction()->StopVisualDownload();
-		uniassert(false, "downloading failed");
+		uniassert(cancelled, "downloading failed");
 	}
 
 	Msg("- Releasing resources");

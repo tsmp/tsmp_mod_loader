@@ -143,7 +143,8 @@ protected:
 
 	void assign_string(u32 pshared_str, const string &text);
 
-	u32 GetMainMenu();
+	u32 GetMainMenuPtr();
+	u32 PatchDownloadIsInProgressPtr();
 	virtual void ActivateMainMenu(bool state);
 
 	virtual u32 get_CMainMenu_castto_IMainMenu_offset() = 0;
@@ -274,7 +275,7 @@ public:
 	static FZAbstractGameVersion* DetermineGameVersion();
 };
 
-//implementation
+// implementation
 
 u32 AtomicExchange(u32* addr, u32 val)
 {
@@ -319,11 +320,11 @@ FZBaseGameVersion::FZBaseGameVersion()
 	m_pCLocatorApiPathExists = GetProcAddress(m_XrCoreModuleAddress, "?path_exist@CLocatorAPI@@QAE_NPBD@Z");
 	uniassert(m_pCLocatorApiPathExists, "CLocatorApi::path_exists is 0");
 
-	//Осторожно! Собака кусается! (тут функция, проверяем значение указателя на нее)
+	// Осторожно! Собака кусается! (тут функция, проверяем значение указателя на нее)
 	m_pLogFunction = reinterpret_cast<LogFuncPtr>(GetProcAddress(m_XrCoreModuleAddress, "?Msg@@YAXPBDZZ"));
 	uniassert(m_pLogFunction, "m_pLogFunction is 0");
 
-	//По умолчанию, будем использовать эту заглушку, если в потомках не найдется чего-то поприличнее
+	// По умолчанию, будем использовать эту заглушку, если в потомках не найдется чего-то поприличнее
 	m_pCConsoleGetString = CConsoleGetStringFake;
 
 	/*
@@ -630,14 +631,14 @@ void FZCommonGameVersion::SafeExec_start()
 // НЕ ТРОГАТЬ! ОПАСНО ДЛЯ ЖИЗНИ!
 void FZCommonGameVersion::SafeExec_end()
 {
-	//Самое время перезапустить второй поток
+	// Самое время перезапустить второй поток
 	ThreadSpawn(reinterpret_cast<void*>(get_SecondaryThreadProcAddress()), 0, get_SecondaryThreadProcName(), 0);
 
-	//Больше не требуется ничего ждать :)
+	// Больше не требуется ничего ждать :)
 	DoEcxCall_noarg(m_pXrCriticalSectionLeave, reinterpret_cast<void*>(m_pDevice + get_CRenderDevice__mt_csEnter_offset()));
 
-	//ждать завершения работы итерации главного потока нет необходимости.
-	//Более того, вторичный поток еще может успеть захватить mt_csEnter ;)
+	// ждать завершения работы итерации главного потока нет необходимости.
+	// Более того, вторичный поток еще может успеть захватить mt_csEnter ;)
 }
 
 void FZCommonGameVersion::assign_string(u32 pshared_str, const string &text)
@@ -665,7 +666,7 @@ void FZCommonGameVersion::assign_string(u32 pshared_str, const string &text)
 	*sharedStrP = pNewValue;
 }
 
-u32 FZCommonGameVersion::GetMainMenu()
+u32 FZCommonGameVersion::GetMainMenuPtr()
 {
 	const u32 gamePersistent = *reinterpret_cast<u32*>(m_pGamePersistent);
 	uniassert(gamePersistent, "gamePersistent not exist");
@@ -674,13 +675,13 @@ u32 FZCommonGameVersion::GetMainMenu()
 
 void FZCommonGameVersion::ActivateMainMenu(bool state)
 {
-	void* imm = reinterpret_cast<void*>(GetMainMenu() + get_CMainMenu_castto_IMainMenu_offset());
+	void* imm = reinterpret_cast<void*>(GetMainMenuPtr() + get_CMainMenu_castto_IMainMenu_offset());
 	DoEcxCall_1arg(FunFromVTable(imm, virtual_IMainMenu__Activate_index()), imm, reinterpret_cast<void*>(state));
 }
 
 bool FZCommonGameVersion::IsMessageActive()
 {
-	const u32 mm = GetMainMenu();
+	const u32 mm = GetMainMenuPtr();
 
 	if (!mm)
 		return false;
@@ -693,11 +694,11 @@ bool FZCommonGameVersion::IsMessageActive()
 	if (!msgwnd)
 		return false;
 
-	//Сначала смотрим, не показывается ли окно
+	// Сначала смотрим, не показывается ли окно
 	if (*reinterpret_cast<bool*>(msgwnd + get_CUIMessageBoxEx_to_CUISimpleWindow_m_bShowMe_offset()))
 		return true;
 
-	//Быть может, мы его собираемся показать? (наоборот проверять нельзя! Выставление значения во время активности окна его скрывает!)
+	// Быть может, мы его собираемся показать? (наоборот проверять нельзя! Выставление значения во время активности окна его скрывает!)
 	const EErrorDlg m_NeedErrDialog = *reinterpret_cast<EErrorDlg*>(mm + get_CMainMenu__m_NeedErrDialog_offset());
 	return m_NeedErrDialog == get_CMainMenu__Message_dlg_id(); // NoNewPatch
 }
@@ -709,15 +710,15 @@ void FZCommonGameVersion::TriggerMessage()
 
 void FZCommonGameVersion::PrepareForMessageShowing()
 {
-	//Окно сообщение в ТЧ/ЧН может "зависнуть" в неопределенном состоянии
-	//Будем триггерить его до тех пор, пока не "отлипнет"
+	// Окно сообщение в ТЧ/ЧН может "зависнуть" в неопределенном состоянии
+	// Будем триггерить его до тех пор, пока не "отлипнет"
 	while (IsMessageActive())
 		TriggerMessage();
 }
 
 void FZCommonGameVersion::ResetMasterServerError()
 {
-	const u32 mm = GetMainMenu();
+	const u32 mm = GetMainMenuPtr();
 
 	if (!mm)
 		return;
@@ -742,13 +743,13 @@ void FZCommonGameVersion::ShowMpMainMenu()
 	const void* arg1 = reinterpret_cast<void*>(MP_MENU_CMD);
 	const void* arg2 = reinterpret_cast<void*>(MP_MENU_PARAM);
 
-	const u32 mm = GetMainMenu();
+	const u32 mm = GetMainMenuPtr();
 	SafeExec_start();
 
 	ActivateMainMenu(false);
 	ActivateMainMenu(true);
 
-	//m_startDialog обновляется после ActivateMainMenu, поэтому нельзя заранее смотреть его положение!
+	// m_startDialog обновляется после ActivateMainMenu, поэтому нельзя заранее смотреть его положение!
 	const u32 dlg = *reinterpret_cast<u32*>(mm + get_CMainMenu__m_startDialog_offset());
 	void* pDlg = reinterpret_cast<void*>(dlg);
 
@@ -760,23 +761,28 @@ void FZCommonGameVersion::ShowMpMainMenu()
 
 void FZCommonGameVersion::AssignStatus(const string &str)
 {
-	const u32 mm = GetMainMenu();
+	const u32 mm = GetMainMenuPtr();
 	SafeExec_start();
 	assign_string(mm + get_CMainMenu__m_sPDProgress__FileName_offset(), str);
 	assign_string(mm + get_CMainMenu__m_sPDProgress__Status_offset(), str);
 	SafeExec_end();
 }
 
+u32 FZCommonGameVersion::PatchDownloadIsInProgressPtr()
+{
+	const u32 mm = GetMainMenuPtr();
+	return mm + get_CMainMenu__m_sPDProgress__IsInProgress_offset();
+}
+
 bool FZCommonGameVersion::CheckForUserCancelDownload()
 {
-	// TODO: разобраться почему срабатывает само
-	return false;
-	//return *reinterpret_cast<bool*>(GetMainMenu() + get_CMainMenu__m_sPDProgress__IsInProgress_offset());
+	const bool inProgress = *reinterpret_cast<bool*>(PatchDownloadIsInProgressPtr());
+	return !inProgress;
 }
 
 bool FZCommonGameVersion::StartVisualDownload()
 {
-	const u32 mm = GetMainMenu();
+	const u32 mm = GetMainMenuPtr();
 
 	// Назначим строку-пояснение над индикатором загрузки (там что-то должно быть перед
 	// назначением IsInProgress, иначе есть вероятность вылета при попытке отрисовки)
@@ -790,9 +796,9 @@ bool FZCommonGameVersion::StartVisualDownload()
 	{
 		cyclesCount = cyclesCount - 1;
 		Sleep(10);
-		//Атомарно выставим активность загрузки и получим предыдущее значение (только в младшем байте, остальное мусор!)
-		tmp = AtomicExchange(reinterpret_cast<u32*>(mm + get_CMainMenu__m_sPDProgress__IsInProgress_offset()), 1) & 0xFF;
-		//Убедимся, что загрузку до нас никто еще не стартовал, пока мы ждали захват мьютекса
+		// Атомарно выставим активность загрузки и получим предыдущее значение (только в младшем байте, остальное мусор!)
+		tmp = AtomicExchange(reinterpret_cast<u32*>(PatchDownloadIsInProgressPtr()), 1) & 0xFF;
+		// Убедимся, что загрузку до нас никто еще не стартовал, пока мы ждали захват мьютекса
 	} while (tmp != 0 && cyclesCount != 0);
 
 	if (tmp)
@@ -800,7 +806,7 @@ bool FZCommonGameVersion::StartVisualDownload()
 
 	SetVisualProgress(0);
 
-	//На случай нажатия кнопки отмена - укажем, что активного запроса о загрузке не было
+	// На случай нажатия кнопки отмена - укажем, что активного запроса о загрузке не было
 	const u32 gsFull = *reinterpret_cast<u32*>(mm + get_CMainMenu__m_pGameSpyFull_offset());
 	uniassert(gsFull, "m_pGameSpyFull is 0");
 
@@ -810,7 +816,7 @@ bool FZCommonGameVersion::StartVisualDownload()
 	int* m_LastRequest = reinterpret_cast<int*>(gsHttp + get_CGameSpy_HTTP__m_LastRequest_offset());
 	*m_LastRequest = -1;
 
-	//Включим главное меню на вкладке мультиплеера(ползунок загрузки есть только там)
+	// Включим главное меню на вкладке мультиплеера(ползунок загрузки есть только там)
 	ShowMpMainMenu();
 	return true;
 }
@@ -818,13 +824,13 @@ bool FZCommonGameVersion::StartVisualDownload()
 bool FZCommonGameVersion::StopVisualDownload()
 {
 	SetVisualProgress(0);
-	AtomicExchange(reinterpret_cast<u32*>(GetMainMenu() + get_CMainMenu__m_sPDProgress__IsInProgress_offset()), 0);
+	AtomicExchange(reinterpret_cast<u32*>(PatchDownloadIsInProgressPtr()), 0);
 	return true;
 }
 
 void FZCommonGameVersion::SetVisualProgress(float progress)
 {
-	*reinterpret_cast<float*>(GetMainMenu() + get_CMainMenu__m_sPDProgress__Progress_offset()) = progress;
+	*reinterpret_cast<float*>(GetMainMenuPtr() + get_CMainMenu__m_sPDProgress__Progress_offset()) = progress;
 }
 
 bool FZCommonGameVersion::ThreadSpawn(void* proc, void* args, const string &name, u32 stack)
@@ -860,7 +866,7 @@ void FZCommonGameVersion::AbortConnection()
 
 bool FZCommonGameVersion::IsServerListUpdateActive()
 {
-	const u32 mm = GetMainMenu();
+	const u32 mm = GetMainMenuPtr();
 	if (!mm)
 		return false;
 
@@ -891,7 +897,7 @@ bool FZCommonGameVersion::IsServerListUpdateActive()
 
 u32 FZCommonGameVersion::GetNeedErrorDlg()
 {
-	const u32 mm = GetMainMenu();
+	const u32 mm = GetMainMenuPtr();
 
 	if (!mm)
 		return 0;
@@ -901,7 +907,7 @@ u32 FZCommonGameVersion::GetNeedErrorDlg()
 
 void FZCommonGameVersion::SetActiveErrorDlg(u32 dlg)
 {
-	const u32 menu = GetMainMenu();
+	const u32 menu = GetMainMenuPtr();
 
 	if (!menu)
 		return;
