@@ -1,5 +1,6 @@
 #include "..\Common.h"
 #include "Abstractions.h"
+#include <memory>
 
 // TODO: implement FZUnknownGameVersion and maybe saving log to another file
 
@@ -45,6 +46,33 @@ struct xrCoreData
 
 using pxrCoreData = xrCoreData*;
 
+class ConnectToServerButtonOverrider
+{
+	static inline void* m_SourceFunc{ nullptr };
+	static inline void* m_SourceHandler{ nullptr };
+	static inline ConnectToServerClickHandler m_OurHandler{ nullptr };
+	static const u32 BytesToOverwrite = 6;
+
+public:
+	void Handle()
+	{
+		m_OurHandler();
+	}
+
+	ConnectToServerButtonOverrider(ConnectToServerClickHandler clientHandler, void* srcFunc)
+	{
+		m_SourceFunc = srcFunc;
+		m_OurHandler = clientHandler;
+		auto classHandler = &ConnectToServerButtonOverrider::Handle;
+		m_SourceHandler = HookFunction(srcFunc, (void*&)classHandler, BytesToOverwrite);
+	}
+
+	~ConnectToServerButtonOverrider()
+	{
+		UnHookFunction(m_SourceFunc, m_SourceHandler, BytesToOverwrite);
+	}
+};
+
 class FZBaseGameVersion : public FZAbstractGameVersion
 {
 protected:
@@ -66,6 +94,8 @@ protected:
 
 	void* m_pCLocatorApiUpdatePath;
 	void* m_pCLocatorApiPathExists;
+
+	std::unique_ptr<ConnectToServerButtonOverrider> m_ConnectBtnOverrider;
 
 	using LogFuncPtr = void(__cdecl* )(const char* text);
 	LogFuncPtr m_pLogFunction;
@@ -186,6 +216,8 @@ protected:
 	virtual u32 virtual_IMainMenu__Activate_index() = 0;
 	virtual u32 virtual_CUIDialogWnd__Dispatch_index() = 0;
 
+	virtual u32 get_CServerList__ConnectToSelected_offset() = 0;
+
 	void SetActiveErrorDlg(u32 dlg);
 	u32 GetNeedErrorDlg();
 public:
@@ -211,6 +243,8 @@ public:
 	void TriggerMessage() override;
 	void PrepareForMessageShowing() override;
 	void ResetMasterServerError() override;
+
+	void SetOnServerConnectClickHandler(ConnectToServerClickHandler handler) override;
 };
 
 class FZGameVersion10006 : public FZCommonGameVersion
@@ -255,6 +289,8 @@ protected:
 	
 	u32 virtual_IMainMenu__Activate_index() override;
 	u32 virtual_CUIDialogWnd__Dispatch_index() override;
+
+	u32 get_CServerList__ConnectToSelected_offset() override;
 
 public:
 	FZGameVersion10006();
@@ -915,6 +951,12 @@ void FZCommonGameVersion::SetActiveErrorDlg(u32 dlg)
 	*reinterpret_cast<u32*>(menu + get_CMainMenu__m_NeedErrDialog_offset()) = dlg;
 }
 
+void FZCommonGameVersion::SetOnServerConnectClickHandler(ConnectToServerClickHandler handler)
+{
+	auto offs = reinterpret_cast<void*>(get_CServerList__ConnectToSelected_offset());
+	m_ConnectBtnOverrider = std::make_unique<ConnectToServerButtonOverrider>(handler, offs);
+}
+
 FZGameVersion10006::FZGameVersion10006()
 {
 	if (void* addr = GetProcAddress(m_ExeModuleAddress, "?GetString@CConsole@@QAEPADPBD@Z"))
@@ -1075,6 +1117,11 @@ u32 FZGameVersion10006::virtual_IMainMenu__Activate_index()
 u32 FZGameVersion10006::virtual_CUIDialogWnd__Dispatch_index()
 {
 	return 0x2C;
+}
+
+u32 FZGameVersion10006::get_CServerList__ConnectToSelected_offset()
+{
+	return reinterpret_cast<u32>(m_XrGameModuleAddress) + 0x432610;
 }
 
 u32 FZGameVersion10006_v2::get_SecondaryThreadProcAddress()

@@ -1,5 +1,7 @@
 #pragma once
 
+using ConnectToServerClickHandler = void(*)();
+
 class FZAbstractGameVersion
 {
 public:
@@ -38,6 +40,8 @@ public:
     virtual void TriggerMessage() = 0;
     virtual void PrepareForMessageShowing() = 0;
     virtual void ResetMasterServerError() = 0;
+
+    virtual void SetOnServerConnectClickHandler(ConnectToServerClickHandler handler) = 0;
 };
 
 bool InitAbstractions();

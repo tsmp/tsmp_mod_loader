@@ -25,6 +25,7 @@
     <ClCompile Include="Log.cpp" />
     <ClCompile Include="lowlevel\Abstractions.cpp" />
     <ClCompile Include="lowlevel\Decompressor.cpp" />
+    <ClCompile Include="lowlevel\Hook.cpp" />
     <ClCompile Include="ModLoader.cpp" />
     <ClCompile Include="WinapiDownloadFile.cpp" />
   </ItemGroup>

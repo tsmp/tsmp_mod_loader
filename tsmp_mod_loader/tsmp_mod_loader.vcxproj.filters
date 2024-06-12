@@ -51,6 +51,9 @@
     <ClCompile Include="DebugTools.cpp">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
+    <ClCompile Include="lowlevel\Hook.cpp">
+      <Filter>Исходные файлы</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="lowlevel\Abstractions.h">

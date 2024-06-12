@@ -892,14 +892,22 @@ bool GetFileLists(const FZFiles &filesCp, FZFiles& files, FZModSettings &modSett
 	return flag;
 }
 
+void HandleConnectToServerClick()
+{
+	Msg("player clicked on connect button");
+	ShowMessageBox();
+}
+
 bool PrepareGUI()
 {
-	//Пока идет коннект(существует уровень) - не начинаем работу
+	VersionAbstraction()->SetOnServerConnectClickHandler(HandleConnectToServerClick);
+
+	// Пока идет коннект(существует уровень) - не начинаем работу
 	while (VersionAbstraction()->CheckForLevelExist())
 		Sleep(10);
 
-	//Пауза для нормального обновления мастер-листа
-	Sleep(100); //Слип тут чтобы поток обновления гарантированно запустился - мало ли
+	// Пауза для нормального обновления мастер-листа
+	Sleep(100); // Слип тут чтобы поток обновления гарантированно запустился - мало ли
 
 	while (VersionAbstraction()->IsServerListUpdateActive())
 		Sleep(1);
